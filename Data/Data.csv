@@ -1,9 +1,0 @@
-id,timestamp,date,time,network,tokyo_ping,hongkong_ping,singapore_ping,mumbai_ping,average_ping,median_ping,minimum_ping,maximum_ping,ping_range,standard_deviation,timePeriod,dayType,hour,created_at
-mtl35g408x7hzw,2026-09-03T10:59,2026-09-03,10:59:00,Mobitel,12,12,12,12,12,12,12,12,0,0,Morning,weekday,10,2026-09-03T05:29:40.560Z
-mtl35s0gjmzi8f,2026-09-03T10:59,2026-09-03,10:59:00,Dialog,45,45,45,45,45,45,45,45,0,0,Morning,weekday,10,2026-09-03T05:29:55.984Z
-mtl36nkvorobqd,2026-09-03T10:59,2026-09-03,10:59:00,Hutch,78,78,78,78,78,78,78,78,0,0,Morning,weekday,10,2026-09-03T05:30:36.895Z
-mtl36v6fy9mun6,2026-09-03T11:00,2026-09-03,11:00:00,Airtel,7,7,7,7,7,7,7,7,0,0,Morning,weekday,11,2026-09-03T05:30:46.743Z
-mtl37qu7jcldnh,2026-09-03T11:00,2026-09-03,11:00:00,Mobitel,7879,789,789,789,2561.5,789,789,7879,7090,3070.060056415835,Morning,weekday,11,2026-09-03T05:31:27.775Z
-mtl38drjluhkgy,2026-09-03T11:01,2026-09-03,11:01:00,Dialog,74,4,4,4,21.5,4,4,74,70,30.31088913245535,Morning,weekday,11,2026-09-03T05:31:57.487Z
-mtl38j07wopnpm,2026-09-03T11:01,2026-09-03,11:01:00,Hutch,785,75,524,456,460,490,75,785,710,253.94979818853963,Morning,weekday,11,2026-09-03T05:32:04.279Z
-mtl38rwv3yutkf,2026-09-03T11:02,2026-09-03,11:02:00,Airtel,963,963,963,963,963,963,963,963,0,0,Morning,weekday,11,2026-09-03T05:32:15.823Z

@@ -644,19 +644,49 @@
       return CSV_HEADERS.join(',') + '\n' + rows.join('\n');
     }
 
+    // ── Robust CSV parser ──
+    function parseCSVLine(line) {
+      const fields = [];
+      let current = '';
+      let inQuotes = false;
+      for (let i = 0; i < line.length; i++) {
+        const ch = line[i];
+        if (inQuotes) {
+          if (ch === '"' && line[i+1] === '"') {
+            current += '"';
+            i++; // skip next quote
+          } else if (ch === '"') {
+            inQuotes = false;
+          } else {
+            current += ch;
+          }
+        } else {
+          if (ch === '"') {
+            inQuotes = true;
+          } else if (ch === ',') {
+            fields.push(current);
+            current = '';
+          } else {
+            current += ch;
+          }
+        }
+      }
+      fields.push(current);
+      return fields;
+    }
+
     function csvToMeasurements(csvText) {
       const lines = csvText.split('\n').filter(l => l.trim() !== '');
       if (lines.length < 2) return [];
-      const headers = lines[0].split(',').map(h => h.trim());
+      const headers = parseCSVLine(lines[0]);
       const result = [];
       for (let i = 1; i < lines.length; i++) {
-        const values = lines[i].split(',').map(v => v.trim());
+        const values = parseCSVLine(lines[i]);
         const row = {};
         for (let j = 0; j < headers.length; j++) {
           let val = values[j] || '';
-          if (val.startsWith('"') && val.endsWith('"')) {
-            val = val.slice(1, -1).replace(/""/g, '"');
-          }
+          // trim whitespace
+          val = val.trim();
           row[headers[j]] = val;
         }
         const numFields = ['tokyo_ping', 'hongkong_ping', 'singapore_ping', 'mumbai_ping',
@@ -671,7 +701,6 @@
         }
         if (!row.id) row.id = generateId();
         if (!row.created_at) row.created_at = new Date().toISOString();
-        // Ensure numeric fields are numbers
         result.push(row);
       }
       return result;
@@ -949,11 +978,12 @@
       return sorted[floor] + (sorted[ceil] - sorted[floor]) * (idx - floor);
     }
 
+    // FIXED: sample standard deviation (n-1)
     function stddev(vals) {
       if (!vals || vals.length < 2) return 0;
       const mean = vals.reduce((a, b) => a + b, 0) / vals.length;
       const sq = vals.map(v => (v - mean) ** 2);
-      return Math.sqrt(sq.reduce((a, b) => a + b, 0) / vals.length);
+      return Math.sqrt(sq.reduce((a, b) => a + b, 0) / (vals.length - 1));
     }
 
     function coefficientOfVariation(vals) {
@@ -1016,11 +1046,18 @@
       }
       valEl.className = 'validation-msg';
       const dateObj = new Date(dt);
-      const dateStr = dateObj.toISOString().split('T')[0];
+
+      // FIX: local date string
+      const year = dateObj.getFullYear();
+      const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+      const day = String(dateObj.getDate()).padStart(2, '0');
+      const dateStr = year + '-' + month + '-' + day;
+
       const timeStr = dateObj.toTimeString().slice(0, 8);
       const hour = dateObj.getHours();
       const timePeriod = getTimePeriod(hour);
-      const dayType = getDayType(dateStr);
+      const dayType = getDayType(dateStr);  // uses local date string
+
       const metrics = calcMetrics(tokyo, hk, sg, mb);
       const record = {
         id: '',
@@ -1583,6 +1620,7 @@
       });
     }
 
+    // FIXED: use null instead of 0 for missing data
     function renderServerCompareChart(data) {
       const canvas = document.getElementById('chartServerCompare');
       destroyChart('serverCompare');
@@ -1591,9 +1629,9 @@
       const datasets = netList.map((n, i) => {
         const vals = serverKeys.map(key => {
           const recs = data.filter(r => r.network === n);
-          if (!recs.length) return 0;
+          if (!recs.length) return null;
           const pings = recs.map(r => r[key]).filter(v => v !== undefined && v !== null);
-          return pings.length ? pings.reduce((a, b) => a + b, 0) / pings.length : 0;
+          return pings.length ? pings.reduce((a, b) => a + b, 0) / pings.length : null;
         });
         return { label: n, data: vals, backgroundColor: netColors[n] + '88', borderColor: netColors[n], borderWidth: 2 };
       });
@@ -1604,6 +1642,7 @@
       });
     }
 
+    // FIXED: use null instead of 0 for missing data
     function renderServerHeatmapChart(data) {
       const canvas = document.getElementById('chartServerHeatmap');
       destroyChart('serverHeatmap');
@@ -1612,18 +1651,20 @@
       const matrix = netList.map(n => {
         return serverKeys.map(key => {
           const recs = data.filter(r => r.network === n);
-          if (!recs.length) return 0;
+          if (!recs.length) return null;
           const pings = recs.map(r => r[key]).filter(v => v !== undefined && v !== null);
-          return pings.length ? pings.reduce((a, b) => a + b, 0) / pings.length : 0;
+          return pings.length ? pings.reduce((a, b) => a + b, 0) / pings.length : null;
         });
       });
-      const flat = matrix.flat();
+      const flat = matrix.flat().filter(v => v !== null);
       const maxVal = Math.max(...flat, 1);
+      const minVal = Math.min(...flat, 0);
       const datasets = netList.map((n, i) => ({
         label: n,
         data: matrix[i],
         backgroundColor: matrix[i].map(v => {
-          const ratio = v / maxVal;
+          if (v === null) return '#e9eef4';
+          const ratio = (v - minVal) / (maxVal - minVal || 1);
           const r = Math.round(10 + 200 * ratio),
             g = Math.round(180 - 150 * ratio),
             b = Math.round(240 - 200 * ratio);
@@ -1897,7 +1938,7 @@
       });
     }
 
-    // ── Analytics tables (simplified) ──
+    // ── Analytics tables ──
     function renderAnalytics() {
       renderDailyAnalysis();
       renderTimeAnalysis();
