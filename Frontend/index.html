@@ -565,6 +565,7 @@
         <button class="tab" data-tab="ch-winrate">Win Rate</button>
         <button class="tab" data-tab="ch-heatmap">Heatmap</button>
         <button class="tab" data-tab="ch-outliers">Outliers</button>
+        <button class="tab" data-tab="ch-intraday">Intra‑day</button> <!-- NEW TAB -->
       </div>
       <div class="tab-content active" id="ch-overview"><div class="chart-grid"><div class="chart-box"><div class="chart-title">📈 Overall Comparison</div><canvas id="chartOverview"></canvas></div><div class="chart-box"><div class="chart-title">📊 Distribution</div><canvas id="chartDistribution"></canvas></div></div></div>
       <div class="tab-content" id="ch-daily"><div class="chart-grid"><div class="chart-box"><div class="chart-title">📅 Daily Trend</div><canvas id="chartDaily"></canvas></div><div class="chart-box"><div class="chart-title">📅 Daily Rank</div><canvas id="chartDailyRank"></canvas></div></div></div>
@@ -575,6 +576,20 @@
       <div class="tab-content" id="ch-winrate"><div class="chart-grid"><div class="chart-box"><div class="chart-title">🏅 Win Rate</div><canvas id="chartWinRate"></canvas></div><div class="chart-box"><div class="chart-title">📊 Win Counts</div><canvas id="chartWinCounts"></canvas></div></div></div>
       <div class="tab-content" id="ch-heatmap"><div class="chart-grid"><div class="chart-box"><div class="chart-title">🔥 Network × Time</div><canvas id="chartHeatmap"></canvas></div><div class="chart-box"><div class="chart-title">🔥 Network × Server</div><canvas id="chartHeatmapServer"></canvas></div></div></div>
       <div class="tab-content" id="ch-outliers"><div class="chart-grid"><div class="chart-box"><div class="chart-title">⚠️ Outlier Detection</div><canvas id="chartOutliers"></canvas></div><div class="chart-box"><div class="chart-title">📊 Outlier Summary</div><canvas id="chartOutlierSummary"></canvas></div></div></div>
+      <!-- NEW INTRA-DAY TAB CONTENT -->
+      <div class="tab-content" id="ch-intraday">
+        <div style="margin-bottom:12px; display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+          <label for="intradayDate" style="font-weight:600;">Select Date:</label>
+          <input type="date" id="intradayDate" style="max-width:200px;" />
+          <button class="btn btn-sm btn-outline" id="intradayTodayBtn">Today</button>
+        </div>
+        <div class="chart-grid">
+          <div class="chart-box" style="grid-column:1/-1;">
+            <div class="chart-title">⏱️ Hourly Latency Trend for Selected Day</div>
+            <canvas id="chartIntraday"></canvas>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Analytics Tabs -->
@@ -1047,7 +1062,7 @@
       valEl.className = 'validation-msg';
       const dateObj = new Date(dt);
 
-      // FIX: local date string
+      // local date string
       const year = dateObj.getFullYear();
       const month = String(dateObj.getMonth() + 1).padStart(2, '0');
       const day = String(dateObj.getDate()).padStart(2, '0');
@@ -1056,7 +1071,7 @@
       const timeStr = dateObj.toTimeString().slice(0, 8);
       const hour = dateObj.getHours();
       const timePeriod = getTimePeriod(hour);
-      const dayType = getDayType(dateStr);  // uses local date string
+      const dayType = getDayType(dateStr);
 
       const metrics = calcMetrics(tokyo, hk, sg, mb);
       const record = {
@@ -1441,6 +1456,8 @@
       renderHeatmapServerChart(data);
       renderOutliersChart(data);
       renderOutlierSummaryChart(data);
+      // Intra-day chart
+      renderIntraDayChart(data);
     }
 
     // Helper to get network colors
@@ -1620,7 +1637,6 @@
       });
     }
 
-    // FIXED: use null instead of 0 for missing data
     function renderServerCompareChart(data) {
       const canvas = document.getElementById('chartServerCompare');
       destroyChart('serverCompare');
@@ -1642,7 +1658,6 @@
       });
     }
 
-    // FIXED: use null instead of 0 for missing data
     function renderServerHeatmapChart(data) {
       const canvas = document.getElementById('chartServerHeatmap');
       destroyChart('serverHeatmap');
@@ -1935,6 +1950,92 @@
         data: { labels: netList, datasets: [{ label: 'Total Outliers', data: counts, backgroundColor: netList.map(
             n => netColors[n] + '99'), borderColor: netList.map(n => netColors[n]), borderWidth: 2 }] },
         options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+      });
+    }
+
+    // ── NEW: Intra-day chart ──
+    function renderIntraDayChart(data) {
+      const canvas = document.getElementById('chartIntraday');
+      destroyChart('intraday');
+
+      const datePicker = document.getElementById('intradayDate');
+      let selectedDate = datePicker.value;
+      if (!selectedDate) {
+        // default to today
+        const today = new Date();
+        const y = today.getFullYear();
+        const m = String(today.getMonth() + 1).padStart(2, '0');
+        const d = String(today.getDate()).padStart(2, '0');
+        selectedDate = y + '-' + m + '-' + d;
+        datePicker.value = selectedDate;
+      }
+
+      // Filter data for the selected date
+      const dayData = data.filter(r => r.date === selectedDate);
+      if (dayData.length === 0) {
+        // Show empty state in chart
+        chartInstances['intraday'] = new Chart(canvas, {
+          type: 'line',
+          data: { labels: ['No data for this date'], datasets: [{ label: 'No data', data: [0], borderColor: '#ccc' }] },
+          options: { responsive: true, plugins: { legend: { display: false } } }
+        });
+        return;
+      }
+
+      // Group by hour (0-23) and compute average ping per network
+      const hours = Array.from({ length: 24 }, (_, i) => i);
+      const datasets = netList.map(n => {
+        const vals = hours.map(h => {
+          const recs = dayData.filter(r => r.network === n && r.hour === h);
+          if (recs.length === 0) return null;
+          const avgs = recs.map(r => r.average_ping);
+          return avgs.reduce((a, b) => a + b, 0) / avgs.length;
+        });
+        return {
+          label: n,
+          data: vals,
+          borderColor: netColors[n],
+          backgroundColor: netColors[n] + '22',
+          fill: false,
+          tension: 0.3,
+          pointRadius: 3,
+          spanGaps: true,
+        };
+      });
+
+      // Labels for hours (e.g., "00:00", "01:00", ...)
+      const labels = hours.map(h => String(h).padStart(2, '0') + ':00');
+
+      chartInstances['intraday'] = new Chart(canvas, {
+        type: 'line',
+        data: { labels, datasets },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: { position: 'top' },
+            tooltip: {
+              callbacks: {
+                title: (items) => {
+                  if (items.length) return items[0].label;
+                  return '';
+                },
+                label: (context) => {
+                  let label = context.dataset.label || '';
+                  if (context.raw !== null) {
+                    label += ': ' + context.raw.toFixed(1) + ' ms';
+                  } else {
+                    label += ': No data';
+                  }
+                  return label;
+                }
+              }
+            }
+          },
+          scales: {
+            y: { beginAtZero: true, title: { display: true, text: 'Average Ping (ms)' } },
+            x: { title: { display: true, text: 'Time of Day' } }
+          }
+        }
       });
     }
 
@@ -2350,6 +2451,20 @@
         toast('📄 PDF report generation not yet implemented.', 'info');
       });
 
+      // Intra-day date picker events
+      document.getElementById('intradayDate').addEventListener('change', function() {
+        renderIntraDayChart(measurements);
+      });
+      document.getElementById('intradayTodayBtn').addEventListener('click', function() {
+        const today = new Date();
+        const y = today.getFullYear();
+        const m = String(today.getMonth() + 1).padStart(2, '0');
+        const d = String(today.getDate()).padStart(2, '0');
+        const dateStr = y + '-' + m + '-' + d;
+        document.getElementById('intradayDate').value = dateStr;
+        renderIntraDayChart(measurements);
+      });
+
       // Filters
       document.querySelectorAll('#filterBar input, #filterBar select').forEach(el => {
         el.addEventListener('change', updateAll);
@@ -2373,6 +2488,10 @@
           const target = this.dataset.tab;
           document.querySelectorAll('#chartTabs ~ .tab-content').forEach(c => c.classList.remove('active'));
           document.getElementById(target)?.classList.add('active');
+          // If intra-day tab is shown, ensure chart is rendered
+          if (target === 'ch-intraday') {
+            renderIntraDayChart(measurements);
+          }
         });
       });
       document.querySelectorAll('#analyticsTabs .tab').forEach(tab => {
@@ -2387,7 +2506,13 @@
 
       // Initial render
       updateAll();
-      console.log('📶 Dashboard with CSV persistence ready.');
+      // Set intraday date to today
+      const today = new Date();
+      const y = today.getFullYear();
+      const m = String(today.getMonth() + 1).padStart(2, '0');
+      const d = String(today.getDate()).padStart(2, '0');
+      document.getElementById('intradayDate').value = y + '-' + m + '-' + d;
+      console.log('📶 Dashboard with CSV persistence and Intra-day trend ready.');
     });
 
     window.handleDelete = handleDelete;
