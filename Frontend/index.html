@@ -1,0 +1,2355 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mobile Network Latency Intelligence</title>
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js">
+  </script>
+  <!-- jsPDF -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js">
+  </script>
+  <style>
+    /* ── CSS (same as previous, compact) ── */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: #f4f7fc;
+      color: #1a2634;
+      padding: 20px;
+      min-height: 100vh;
+    }
+    .app {
+      max-width: 1600px;
+      margin: 0 auto;
+    }
+    h1 {
+      font-size: 1.9rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, #0b2b5c, #1a5a8c);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    h2 {
+      font-size: 1.4rem;
+      font-weight: 600;
+      color: #0b2b5c;
+      border-bottom: 3px solid #dbe5f0;
+      padding-bottom: 8px;
+      margin-bottom: 14px;
+    }
+    .card {
+      background: #fff;
+      border-radius: 16px;
+      box-shadow: 0 4px 20px rgba(0, 20, 50, 0.06);
+      padding: 20px 24px;
+      margin-bottom: 24px;
+      border: 1px solid #eaf0f6;
+    }
+    .grid-4 {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 14px;
+    }
+    .flex-between {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .btn {
+      padding: 10px 24px;
+      border: none;
+      border-radius: 10px;
+      font-weight: 600;
+      font-size: 0.95rem;
+      cursor: pointer;
+      transition: 0.2s;
+      background: #e9eef4;
+      color: #1a2634;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .btn-primary {
+      background: #0b2b5c;
+      color: #fff;
+    }
+    .btn-primary:hover {
+      background: #123b72;
+      box-shadow: 0 4px 18px rgba(11, 43, 92, 0.30);
+    }
+    .btn-success {
+      background: #1e7e34;
+      color: #fff;
+    }
+    .btn-danger {
+      background: #c0392b;
+      color: #fff;
+    }
+    .btn-outline {
+      background: transparent;
+      border: 1.5px solid #b0c4de;
+    }
+    .btn-sm {
+      padding: 5px 14px;
+      font-size: 0.8rem;
+      border-radius: 8px;
+    }
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+    .form-row.servers {
+      grid-template-columns: 1fr 1fr;
+      gap: 8px 24px;
+    }
+    .server-input {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .server-input label {
+      min-width: 100px;
+      font-weight: 500;
+    }
+    .server-input input {
+      flex: 1;
+      max-width: 140px;
+      padding: 8px 12px;
+      border: 1.5px solid #dce4ed;
+      border-radius: 8px;
+    }
+    input,
+    select {
+      padding: 10px 14px;
+      border: 1.5px solid #dce4ed;
+      border-radius: 10px;
+      font-size: 0.95rem;
+      background: #fafcff;
+      width: 100%;
+    }
+    .table-wrap {
+      overflow-x: auto;
+      border-radius: 12px;
+      border: 1px solid #eaf0f6;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.88rem;
+      min-width: 800px;
+    }
+    th {
+      background: #f0f5fb;
+      font-weight: 600;
+      color: #0b2b5c;
+      padding: 12px 12px;
+      text-align: left;
+      white-space: nowrap;
+      cursor: pointer;
+      border-bottom: 2px solid #dce4ed;
+      position: sticky;
+      top: 0;
+      z-index: 2;
+    }
+    td {
+      padding: 10px 12px;
+      border-bottom: 1px solid #ecf1f7;
+    }
+    tr:hover td {
+      background: #f8faff;
+    }
+    .badge {
+      display: inline-block;
+      padding: 2px 10px;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+    .badge-blue {
+      background: #dbe5f0;
+      color: #0b2b5c;
+    }
+    .badge-green {
+      background: #d4edda;
+      color: #155724;
+    }
+    .badge-red {
+      background: #f8d7da;
+      color: #721c24;
+    }
+    .kpi {
+      background: #fff;
+      border-radius: 14px;
+      padding: 16px 18px;
+      border: 1px solid #eaf0f6;
+      text-align: center;
+    }
+    .kpi .kpi-label {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #6a7a8e;
+      font-weight: 600;
+    }
+    .kpi .kpi-value {
+      font-size: 1.6rem;
+      font-weight: 700;
+      color: #0b2b5c;
+    }
+    .recommendation-box {
+      background: linear-gradient(135deg, #0b2b5c, #1a5a8c);
+      color: #fff;
+      border-radius: 16px;
+      padding: 20px 28px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+    .recommendation-box .rec-network {
+      font-size: 2rem;
+      font-weight: 700;
+    }
+    .recommendation-box .rec-stats {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px 32px;
+      font-size: 0.9rem;
+    }
+    .chart-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+    .chart-box {
+      background: #fff;
+      border-radius: 12px;
+      padding: 14px;
+      border: 1px solid #eaf0f6;
+    }
+    .chart-box canvas {
+      max-height: 280px;
+      max-width: 100%;
+    }
+    .tabs {
+      display: flex;
+      gap: 4px;
+      flex-wrap: wrap;
+      border-bottom: 2px solid #eaf0f6;
+      padding-bottom: 4px;
+      margin-bottom: 16px;
+    }
+    .tabs .tab {
+      padding: 8px 18px;
+      border-radius: 10px 10px 0 0;
+      font-weight: 500;
+      cursor: pointer;
+      background: transparent;
+      color: #4a5f7a;
+      border: none;
+      font-size: 0.9rem;
+      transition: 0.2s;
+    }
+    .tabs .tab.active {
+      background: #0b2b5c;
+      color: #fff;
+    }
+    .tab-content {
+      display: none;
+    }
+    .tab-content.active {
+      display: block;
+    }
+    .validation-msg {
+      padding: 10px 16px;
+      border-radius: 10px;
+      font-weight: 500;
+      margin-top: 8px;
+      display: none;
+    }
+    .validation-msg.show {
+      display: block;
+    }
+    .validation-msg.error {
+      background: #f8d7da;
+      color: #721c24;
+      border: 1px solid #f5c6cb;
+    }
+    .validation-msg.success {
+      background: #d4edda;
+      color: #155724;
+    }
+    .empty-state {
+      padding: 30px 20px;
+      text-align: center;
+      color: #6a7a8e;
+    }
+    .toast {
+      position: fixed;
+      bottom: 30px;
+      right: 30px;
+      padding: 14px 24px;
+      border-radius: 12px;
+      background: #1a2634;
+      color: #fff;
+      font-weight: 500;
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.25);
+      z-index: 999;
+      transform: translateY(100px);
+      opacity: 0;
+      transition: 0.4s;
+      max-width: 90vw;
+    }
+    .toast.show {
+      transform: translateY(0);
+      opacity: 1;
+    }
+    .toast.success {
+      background: #1e7e34;
+    }
+    .toast.error {
+      background: #c0392b;
+    }
+    .file-status {
+      background: #eaf0f6;
+      padding: 4px 14px;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+    .dot.green {
+      background: #1e7e34;
+    }
+    .dot.red {
+      background: #c0392b;
+    }
+    .dot.yellow {
+      background: #b9770e;
+    }
+    .insight-list {
+      list-style: none;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .insight-list li {
+      padding: 10px 16px;
+      background: #f8faff;
+      border-radius: 10px;
+      border-left: 4px solid #2a6b9e;
+      font-size: 0.92rem;
+    }
+    .filter-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px 20px;
+      align-items: flex-end;
+      background: #f8faff;
+      padding: 14px 18px;
+      border-radius: 12px;
+      border: 1px solid #eaf0f6;
+    }
+    .filter-group {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      min-width: 130px;
+    }
+    .filter-group label {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+      color: #6a7a8e;
+      font-weight: 600;
+    }
+    @media (max-width: 768px) {
+      .grid-4 {
+        grid-template-columns: 1fr 1fr;
+      }
+      .chart-grid {
+        grid-template-columns: 1fr;
+      }
+      .form-row {
+        grid-template-columns: 1fr;
+      }
+      .form-row.servers {
+        grid-template-columns: 1fr;
+      }
+      .server-input input {
+        max-width: 100%;
+      }
+      .recommendation-box {
+        flex-direction: column;
+        text-align: center;
+      }
+      .filter-bar {
+        flex-direction: column;
+        align-items: stretch;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="app" id="app">
+    <!-- Header -->
+    <header class="flex-between" style="margin-bottom:20px;">
+      <div>
+        <h1>📶 Mobile Network Latency Intelligence</h1>
+        <div class="subhead">Sri Lanka · Continuous Ping Analytics</div>
+      </div>
+      <div style="text-align:right;font-size:0.9rem;color:#4a5f7a;">
+        <div id="headerClock" style="font-weight:600;font-size:1.1rem;"></div>
+        <div id="headerDate"></div>
+        <div id="fileStatus" class="file-status" style="margin-top:4px;">
+          <span class="dot red" id="fileDot"></span>
+          <span id="fileStatusText">No CSV file loaded</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Recommendation -->
+    <div class="recommendation-box" id="recommendationBox">
+      <div>
+        <div style="font-size:0.8rem;opacity:0.7;font-weight:500;">🏆 BEST NETWORK RIGHT NOW</div>
+        <div class="rec-network" id="recNetwork">—</div>
+        <div style="font-size:0.85rem;opacity:0.8;" id="recSubtext">Insufficient data</div>
+      </div>
+      <div class="rec-stats" id="recStats">
+        <div class="stat"><strong id="recAvg">—</strong> avg</div>
+        <div class="stat"><strong id="recMed">—</strong> median</div>
+        <div class="stat"><strong id="recP95">—</strong> P95</div>
+        <div class="stat"><strong id="recStab">—</strong> stability</div>
+        <div class="stat"><strong id="recWin">—</strong> win rate</div>
+        <div class="stat"><strong id="recCount">—</strong> measurements</div>
+      </div>
+      <div class="rec-badge" style="background:rgba(255,255,255,0.18);padding:4px 14px;border-radius:30px;font-size:0.8rem;">Live</div>
+    </div>
+
+    <!-- Data Entry Form -->
+    <div class="card">
+      <h2>📝 Enter Measurement</h2>
+      <div style="margin-bottom:12px;display:flex;gap:12px;flex-wrap:wrap;align-items:center;">
+        <button class="btn btn-primary" id="selectCsvBtn">📂 Select CSV File</button>
+        <button class="btn btn-outline" id="createCsvBtn">➕ Create New CSV</button>
+        <span style="font-size:0.85rem;color:#6a7a8e;" id="csvFileName">No file selected</span>
+      </div>
+      <form id="measurementForm" novalidate>
+        <div class="form-row">
+          <div class="input-group">
+            <label for="formDatetime">📅 Date &amp; Time</label>
+            <input type="datetime-local" id="formDatetime" step="1" />
+          </div>
+          <div class="input-group">
+            <label for="formNetwork">📱 Mobile Network</label>
+            <select id="formNetwork">
+              <option value="">— Select —</option>
+              <option value="Mobitel">Mobitel</option>
+              <option value="Dialog">Dialog</option>
+              <option value="Hutch">Hutch</option>
+              <option value="Airtel">Airtel</option>
+            </select>
+          </div>
+        </div>
+        <div style="margin-top:14px;">
+          <label style="font-weight:600;">🌏 Asia Servers <span style="font-weight:400;color:#6a7a8e;font-size:0.8rem;">(ping in ms)</span></label>
+          <div class="form-row servers" style="margin-top:6px;">
+            <div class="server-input"><label>🇯🇵 Tokyo</label><input type="number" id="formTokyo" step="0.1" min="0" placeholder="0.0" /><span class="unit">ms</span></div>
+            <div class="server-input"><label>🇭🇰 Hong Kong</label><input type="number" id="formHongKong" step="0.1" min="0" placeholder="0.0" /><span class="unit">ms</span></div>
+            <div class="server-input"><label>🇸🇬 Singapore</label><input type="number" id="formSingapore" step="0.1" min="0" placeholder="0.0" /><span class="unit">ms</span></div>
+            <div class="server-input"><label>🇮🇳 Mumbai</label><input type="number" id="formMumbai" step="0.1" min="0" placeholder="0.0" /><span class="unit">ms</span></div>
+          </div>
+        </div>
+        <div id="formValidation" class="validation-msg"></div>
+        <div style="display:flex;flex-wrap:wrap;gap:12px;margin-top:16px;">
+          <button type="submit" class="btn btn-primary">📤 Submit Measurement</button>
+          <button type="button" class="btn btn-outline" id="clearFormBtn">↺ Clear</button>
+          <button type="button" class="btn btn-outline" id="exportCsvBtn" style="margin-left:auto;">⬇ Export CSV</button>
+          <button type="button" class="btn btn-outline" id="importCsvBtn">⬆ Import CSV</button>
+          <button type="button" class="btn btn-outline" id="pdfReportBtn">📄 PDF Report</button>
+        </div>
+        <div style="margin-top:8px;"><span style="font-size:0.75rem;color:#6a7a8e;" id="recordCountDisplay">0 measurements</span></div>
+      </form>
+      <input type="file" id="csvFileInput" accept=".csv" style="display:none;" />
+    </div>
+
+    <!-- KPI Cards -->
+    <div class="grid-4" id="kpiGrid">
+      <div class="kpi"><div class="kpi-label">🏆 Best Network</div><div class="kpi-value" id="kpiBestNet">—</div></div>
+      <div class="kpi"><div class="kpi-label">📊 Lowest Avg</div><div class="kpi-value" id="kpiLowestAvg">—</div></div>
+      <div class="kpi"><div class="kpi-label">🎯 Lowest Median</div><div class="kpi-value" id="kpiLowestMed">—</div></div>
+      <div class="kpi"><div class="kpi-label">📈 Best Stability</div><div class="kpi-value" id="kpiBestStab">—</div></div>
+      <div class="kpi"><div class="kpi-label">⚠️ Best P95</div><div class="kpi-value" id="kpiBestP95">—</div></div>
+      <div class="kpi"><div class="kpi-label">🏅 Win Rate</div><div class="kpi-value" id="kpiWinRate">—</div></div>
+      <div class="kpi"><div class="kpi-label">📋 Total</div><div class="kpi-value" id="kpiTotal">0</div></div>
+      <div class="kpi"><div class="kpi-label">📅 Days</div><div class="kpi-value" id="kpiDays">0</div></div>
+    </div>
+
+    <!-- Filters -->
+    <div class="filter-bar" id="filterBar">
+      <div class="filter-group"><label>Date From</label><input type="date" id="filterDateFrom" /></div>
+      <div class="filter-group"><label>Date To</label><input type="date" id="filterDateTo" /></div>
+      <div class="filter-group"><label>Network</label>
+        <select id="filterNetwork"><option value="">All</option><option value="Mobitel">Mobitel</option><option value="Dialog">Dialog</option><option value="Hutch">Hutch</option><option value="Airtel">Airtel</option></select>
+      </div>
+      <div class="filter-group"><label>Server</label>
+        <select id="filterServer"><option value="">All</option><option value="tokyo">Tokyo</option><option value="hongkong">Hong Kong</option><option value="singapore">Singapore</option><option value="mumbai">Mumbai</option></select>
+      </div>
+      <div class="filter-group"><label>Time Period</label>
+        <select id="filterTimePeriod"><option value="">All</option><option value="Early Morning">Early Morning</option><option value="Morning">Morning</option><option value="Afternoon">Afternoon</option><option value="Evening">Evening</option><option value="Night">Night</option></select>
+      </div>
+      <div class="filter-group"><label>Day Type</label>
+        <select id="filterDayType"><option value="">All</option><option value="weekday">Weekday</option><option value="weekend">Weekend</option></select>
+      </div>
+      <button class="btn btn-sm btn-outline" id="clearFiltersBtn">✕ Clear</button>
+    </div>
+
+    <!-- Data Table -->
+    <div class="card">
+      <div class="flex-between"><h2>📋 Measurement Log</h2><span id="tableCount">0 records</span></div>
+      <div class="table-wrap">
+        <table id="dataTable">
+          <thead id="tableHead">
+            <tr>
+              <th data-sort="date">Date <span class="sort-icon">⇅</span></th>
+              <th data-sort="time">Time <span class="sort-icon">⇅</span></th>
+              <th data-sort="network">Network <span class="sort-icon">⇅</span></th>
+              <th data-sort="tokyo">Tokyo <span class="sort-icon">⇅</span></th>
+              <th data-sort="hongkong">HK <span class="sort-icon">⇅</span></th>
+              <th data-sort="singapore">SG <span class="sort-icon">⇅</span></th>
+              <th data-sort="mumbai">Mumbai <span class="sort-icon">⇅</span></th>
+              <th data-sort="avg">Avg <span class="sort-icon">⇅</span></th>
+              <th data-sort="median">Median <span class="sort-icon">⇅</span></th>
+              <th data-sort="min">Min <span class="sort-icon">⇅</span></th>
+              <th data-sort="max">Max <span class="sort-icon">⇅</span></th>
+              <th data-sort="range">Range <span class="sort-icon">⇅</span></th>
+              <th data-sort="stdev">StDev <span class="sort-icon">⇅</span></th>
+              <th data-sort="score">Score <span class="sort-icon">⇅</span></th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="tableBody"><tr><td colspan="15" class="empty-state">No measurements</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Charts -->
+    <div class="card">
+      <h2>📊 Visual Analytics</h2>
+      <div class="tabs" id="chartTabs">
+        <button class="tab active" data-tab="ch-overview">Overview</button>
+        <button class="tab" data-tab="ch-daily">Daily Trend</button>
+        <button class="tab" data-tab="ch-time">Time of Day</button>
+        <button class="tab" data-tab="ch-servers">Server</button>
+        <button class="tab" data-tab="ch-stability">Stability</button>
+        <button class="tab" data-tab="ch-p95">P95</button>
+        <button class="tab" data-tab="ch-winrate">Win Rate</button>
+        <button class="tab" data-tab="ch-heatmap">Heatmap</button>
+        <button class="tab" data-tab="ch-outliers">Outliers</button>
+      </div>
+      <div class="tab-content active" id="ch-overview"><div class="chart-grid"><div class="chart-box"><div class="chart-title">📈 Overall Comparison</div><canvas id="chartOverview"></canvas></div><div class="chart-box"><div class="chart-title">📊 Distribution</div><canvas id="chartDistribution"></canvas></div></div></div>
+      <div class="tab-content" id="ch-daily"><div class="chart-grid"><div class="chart-box"><div class="chart-title">📅 Daily Trend</div><canvas id="chartDaily"></canvas></div><div class="chart-box"><div class="chart-title">📅 Daily Rank</div><canvas id="chartDailyRank"></canvas></div></div></div>
+      <div class="tab-content" id="ch-time"><div class="chart-grid"><div class="chart-box"><div class="chart-title">🕐 Time-of-Day</div><canvas id="chartTimeOfDay"></canvas></div><div class="chart-box"><div class="chart-title">🕐 P95 by Time</div><canvas id="chartTimeP95"></canvas></div></div></div>
+      <div class="tab-content" id="ch-servers"><div class="chart-grid"><div class="chart-box"><div class="chart-title">🌏 Server Compare</div><canvas id="chartServerCompare"></canvas></div><div class="chart-box"><div class="chart-title">🌏 Server Heatmap</div><canvas id="chartServerHeatmap"></canvas></div></div></div>
+      <div class="tab-content" id="ch-stability"><div class="chart-grid"><div class="chart-box"><div class="chart-title">📊 Stability (σ)</div><canvas id="chartStability"></canvas></div><div class="chart-box"><div class="chart-title">📊 Coeff. of Variation</div><canvas id="chartCV"></canvas></div></div></div>
+      <div class="tab-content" id="ch-p95"><div class="chart-grid"><div class="chart-box"><div class="chart-title">⚠️ P95 Latency</div><canvas id="chartP95"></canvas></div><div class="chart-box"><div class="chart-title">⚠️ Max Latency</div><canvas id="chartMaxLatency"></canvas></div></div></div>
+      <div class="tab-content" id="ch-winrate"><div class="chart-grid"><div class="chart-box"><div class="chart-title">🏅 Win Rate</div><canvas id="chartWinRate"></canvas></div><div class="chart-box"><div class="chart-title">📊 Win Counts</div><canvas id="chartWinCounts"></canvas></div></div></div>
+      <div class="tab-content" id="ch-heatmap"><div class="chart-grid"><div class="chart-box"><div class="chart-title">🔥 Network × Time</div><canvas id="chartHeatmap"></canvas></div><div class="chart-box"><div class="chart-title">🔥 Network × Server</div><canvas id="chartHeatmapServer"></canvas></div></div></div>
+      <div class="tab-content" id="ch-outliers"><div class="chart-grid"><div class="chart-box"><div class="chart-title">⚠️ Outlier Detection</div><canvas id="chartOutliers"></canvas></div><div class="chart-box"><div class="chart-title">📊 Outlier Summary</div><canvas id="chartOutlierSummary"></canvas></div></div></div>
+    </div>
+
+    <!-- Analytics Tabs -->
+    <div class="card">
+      <h2>🔬 Deep Analytics</h2>
+      <div class="tabs" id="analyticsTabs">
+        <button class="tab active" data-tab="an-daily">Daily</button>
+        <button class="tab" data-tab="an-time">Time-of-Day</button>
+        <button class="tab" data-tab="an-server">Server</button>
+        <button class="tab" data-tab="an-network">Network</button>
+        <button class="tab" data-tab="an-stability">Stability</button>
+        <button class="tab" data-tab="an-interaction">Network×Time</button>
+        <button class="tab" data-tab="an-anomalies">Anomalies</button>
+      </div>
+      <div class="tab-content active" id="an-daily"><div id="dailyAnalysisContainer"></div></div>
+      <div class="tab-content" id="an-time"><div id="timeAnalysisContainer"></div></div>
+      <div class="tab-content" id="an-server"><div id="serverAnalysisContainer"></div></div>
+      <div class="tab-content" id="an-network"><div id="networkComparisonContainer"></div></div>
+      <div class="tab-content" id="an-stability"><div id="stabilityContainer"></div></div>
+      <div class="tab-content" id="an-interaction"><div id="interactionContainer"></div></div>
+      <div class="tab-content" id="an-anomalies"><div id="anomaliesContainer"></div></div>
+    </div>
+
+    <!-- Insights -->
+    <div class="card">
+      <h2>💡 Key Insights</h2>
+      <ul class="insight-list" id="insightList"><li style="border-left-color:#b0c4de;background:#f4f7fc;color:#6a7a8e;">Add measurements to generate insights.</li></ul>
+    </div>
+
+    <div style="text-align:center;padding:20px 0 8px;color:#7a8a9e;font-size:0.8rem;border-top:1px solid #eaf0f6;margin-top:12px;">
+      Mobile Network Latency Intelligence &bull; CSV-backed storage &bull; <span id="footerCount">0</span> measurements
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script>
+    // ═══════════════════════════════════════════════════════════════════════
+    //  DATA LAYER — CSV with persistent file handle via IndexedDB
+    // ═══════════════════════════════════════════════════════════════════════
+
+    let measurements = [];
+    let sortField = 'date';
+    let sortAsc = false;
+    let chartInstances = {};
+    let fileHandle = null;
+    let csvFileName = '';
+
+    const CSV_HEADERS = [
+      'id', 'timestamp', 'date', 'time', 'network',
+      'tokyo_ping', 'hongkong_ping', 'singapore_ping', 'mumbai_ping',
+      'average_ping', 'median_ping', 'minimum_ping', 'maximum_ping',
+      'ping_range', 'standard_deviation', 'timePeriod', 'dayType', 'hour', 'created_at'
+    ];
+
+    // ── CSV serialization ──
+    function measurementsToCSV(data) {
+      const rows = data.map(r => {
+        return CSV_HEADERS.map(h => {
+          let val = r[h] ?? '';
+          if (typeof val === 'string' && (val.includes(',') || val.includes('"') || val.includes('\n'))) {
+            val = '"' + val.replace(/"/g, '""') + '"';
+          }
+          return val;
+        }).join(',');
+      });
+      return CSV_HEADERS.join(',') + '\n' + rows.join('\n');
+    }
+
+    function csvToMeasurements(csvText) {
+      const lines = csvText.split('\n').filter(l => l.trim() !== '');
+      if (lines.length < 2) return [];
+      const headers = lines[0].split(',').map(h => h.trim());
+      const result = [];
+      for (let i = 1; i < lines.length; i++) {
+        const values = lines[i].split(',').map(v => v.trim());
+        const row = {};
+        for (let j = 0; j < headers.length; j++) {
+          let val = values[j] || '';
+          if (val.startsWith('"') && val.endsWith('"')) {
+            val = val.slice(1, -1).replace(/""/g, '"');
+          }
+          row[headers[j]] = val;
+        }
+        const numFields = ['tokyo_ping', 'hongkong_ping', 'singapore_ping', 'mumbai_ping',
+          'average_ping', 'median_ping', 'minimum_ping', 'maximum_ping', 'ping_range',
+          'standard_deviation', 'hour'
+        ];
+        for (const f of numFields) {
+          if (row[f] !== undefined && row[f] !== '') {
+            const v = parseFloat(row[f]);
+            if (!isNaN(v)) row[f] = v;
+          }
+        }
+        if (!row.id) row.id = generateId();
+        if (!row.created_at) row.created_at = new Date().toISOString();
+        // Ensure numeric fields are numbers
+        result.push(row);
+      }
+      return result;
+    }
+
+    function generateId() {
+      return Date.now().toString(36) + Math.random().toString(36).substring(2, 8);
+    }
+
+    // ── IndexedDB helpers for storing file handle ──
+    function openDB() {
+      return new Promise((resolve, reject) => {
+        const request = indexedDB.open('CSVFileHandleDB', 1);
+        request.onupgradeneeded = (ev) => {
+          const db = ev.target.result;
+          if (!db.objectStoreNames.contains('handles')) {
+            db.createObjectStore('handles', { keyPath: 'id' });
+          }
+        };
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+    }
+
+    async function saveFileHandle(handle) {
+      const db = await openDB();
+      const tx = db.transaction('handles', 'readwrite');
+      const store = tx.objectStore('handles');
+      store.put({ id: 'csvHandle', handle: handle });
+      await new Promise((res, rej) => { tx.oncomplete = res;
+        tx.onerror = rej; });
+    }
+
+    async function getFileHandle() {
+      const db = await openDB();
+      const tx = db.transaction('handles', 'readonly');
+      const store = tx.objectStore('handles');
+      const result = await new Promise((res) => {
+        const req = store.get('csvHandle');
+        req.onsuccess = () => res(req.result);
+        req.onerror = () => res(null);
+      });
+      return result ? result.handle : null;
+    }
+
+    // ── File operations ──
+    async function selectCSVFile() {
+      try {
+        if (!('showOpenFilePicker' in window)) {
+          toast('❌ Your browser does not support File System Access API. Use Chrome/Edge.', 'error');
+          return false;
+        }
+        const [handle] = await window.showOpenFilePicker({
+          types: [{ description: 'CSV Files', accept: { 'text/csv': ['.csv'] } }],
+          multiple: false,
+        });
+        fileHandle = handle;
+        csvFileName = handle.name;
+        await saveFileHandle(handle);
+        await loadFromFileHandle();
+        return true;
+      } catch (err) {
+        if (err.name !== 'AbortError') {
+          toast('❌ Error selecting file: ' + err.message, 'error');
+        }
+        return false;
+      }
+    }
+
+    async function createNewCSV() {
+      try {
+        if (!('showSaveFilePicker' in window)) {
+          toast('❌ Save file picker not supported.', 'error');
+          return false;
+        }
+        const handle = await window.showSaveFilePicker({
+          suggestedName: 'Data.csv',
+          types: [{ description: 'CSV File', accept: { 'text/csv': ['.csv'] } }],
+        });
+        fileHandle = handle;
+        csvFileName = handle.name;
+        await saveFileHandle(handle);
+        // Write empty CSV with headers
+        const emptyCSV = CSV_HEADERS.join(',') + '\n';
+        const writable = await fileHandle.createWritable();
+        await writable.write(emptyCSV);
+        await writable.close();
+        measurements = [];
+        updateAll();
+        toast('✅ New CSV file created: ' + csvFileName, 'success');
+        return true;
+      } catch (err) {
+        if (err.name !== 'AbortError') {
+          toast('❌ Error creating file: ' + err.message, 'error');
+        }
+        return false;
+      }
+    }
+
+    async function loadFromFileHandle() {
+      if (!fileHandle) return false;
+      try {
+        const file = await fileHandle.getFile();
+        const text = await file.text();
+        if (text.trim() === '') {
+          measurements = [];
+        } else {
+          measurements = csvToMeasurements(text);
+        }
+        // Recalculate derived metrics
+        for (const r of measurements) {
+          const t = r.tokyo_ping || 0;
+          const hk = r.hongkong_ping || 0;
+          const sg = r.singapore_ping || 0;
+          const mb = r.mumbai_ping || 0;
+          const metrics = calcMetrics(t, hk, sg, mb);
+          r.average_ping = metrics.avg;
+          r.median_ping = metrics.median;
+          r.minimum_ping = metrics.min;
+          r.maximum_ping = metrics.max;
+          r.ping_range = metrics.range;
+          r.standard_deviation = metrics.stdev;
+        }
+        // Ensure all records have timePeriod etc
+        for (const r of measurements) {
+          if (!r.timePeriod) {
+            const hour = r.hour !== undefined ? r.hour : new Date(r.timestamp).getHours();
+            r.timePeriod = getTimePeriod(hour);
+            r.dayType = getDayType(r.date);
+          }
+        }
+        updateAll();
+        document.getElementById('csvFileName').textContent = csvFileName;
+        document.getElementById('fileStatusText').textContent = 'Using: ' + csvFileName;
+        document.getElementById('fileDot').className = 'dot green';
+        toast(`✅ Loaded ${measurements.length} records from ${csvFileName}`, 'success');
+        return true;
+      } catch (err) {
+        toast('❌ Error loading CSV: ' + err.message, 'error');
+        return false;
+      }
+    }
+
+    async function writeCSV(data) {
+      if (!fileHandle) {
+        toast('⚠️ No CSV file selected.', 'error');
+        return false;
+      }
+      try {
+        if ((await fileHandle.queryPermission({ mode: 'readwrite' })) !== 'granted') {
+          const perm = await fileHandle.requestPermission({ mode: 'readwrite' });
+          if (perm !== 'granted') {
+            toast('❌ Write permission denied.', 'error');
+            return false;
+          }
+        }
+        const writable = await fileHandle.createWritable();
+        const csvContent = measurementsToCSV(data);
+        await writable.write(csvContent);
+        await writable.close();
+        return true;
+      } catch (err) {
+        toast('❌ Error writing CSV: ' + err.message, 'error');
+        return false;
+      }
+    }
+
+    // ── Override add/delete ──
+    function addMeasurement(record) {
+      record.id = generateId();
+      record.created_at = new Date().toISOString();
+      measurements.push(record);
+      if (fileHandle) {
+        writeCSV(measurements);
+      } else {
+        // Fallback to localStorage
+        saveToLocalStorage();
+      }
+      return record;
+    }
+
+    function deleteMeasurement(id) {
+      measurements = measurements.filter(r => r.id !== id);
+      if (fileHandle) {
+        writeCSV(measurements);
+      } else {
+        saveToLocalStorage();
+      }
+    }
+
+    // ── Fallback to localStorage ──
+    function loadFromLocalStorage() {
+      try {
+        const raw = localStorage.getItem('pingData');
+        if (raw) {
+          measurements = JSON.parse(raw);
+          measurements = measurements.filter(r => r && typeof r === 'object');
+        } else {
+          measurements = [];
+        }
+      } catch (e) { measurements = []; }
+    }
+
+    function saveToLocalStorage() {
+      localStorage.setItem('pingData', JSON.stringify(measurements));
+    }
+
+    // ── Init: try to load stored file handle ──
+    async function initStorage() {
+      if (!('showOpenFilePicker' in window)) {
+        document.getElementById('fileStatusText').textContent = '⚠️ Browser not supported. Using localStorage.';
+        document.getElementById('fileDot').className = 'dot red';
+        loadFromLocalStorage();
+        updateAll();
+        return;
+      }
+      const storedHandle = await getFileHandle();
+      if (storedHandle) {
+        fileHandle = storedHandle;
+        csvFileName = storedHandle.name;
+        document.getElementById('csvFileName').textContent = csvFileName;
+        document.getElementById('fileStatusText').textContent = 'Loading...';
+        document.getElementById('fileDot').className = 'dot yellow';
+        await loadFromFileHandle();
+      } else {
+        document.getElementById('fileStatusText').textContent = 'Click "Select CSV File" or "Create New CSV"';
+        document.getElementById('fileDot').className = 'dot red';
+        // Try localStorage fallback?
+        loadFromLocalStorage();
+        updateAll();
+      }
+    }
+
+    // ── Helper functions ──
+    function calcMetrics(t, hk, sg, mb) {
+      const vals = [t, hk, sg, mb].filter(v => v !== undefined && v !== null && !isNaN(v));
+      if (vals.length === 0) return { avg: 0, median: 0, min: 0, max: 0, range: 0, stdev: 0 };
+      const sum = vals.reduce((a, b) => a + b, 0);
+      const avg = sum / vals.length;
+      const sorted = [...vals].sort((a, b) => a - b);
+      const median = sorted.length % 2 === 0 ? (sorted[sorted.length / 2 - 1] + sorted[sorted.length / 2]) / 2 : sorted[Math
+        .floor(sorted.length / 2)];
+      const min = sorted[0];
+      const max = sorted[sorted.length - 1];
+      const range = max - min;
+      const mean = avg;
+      const sqDiff = vals.map(v => (v - mean) ** 2);
+      const variance = sqDiff.reduce((a, b) => a + b, 0) / vals.length;
+      const stdev = Math.sqrt(variance);
+      return { avg, median, min, max, range, stdev };
+    }
+
+    function getTimePeriod(hour) {
+      if (hour < 5) return 'Night';
+      if (hour < 8) return 'Early Morning';
+      if (hour < 12) return 'Morning';
+      if (hour < 17) return 'Afternoon';
+      if (hour < 21) return 'Evening';
+      return 'Night';
+    }
+
+    function getDayType(dateStr) {
+      const d = new Date(dateStr + 'T00:00:00');
+      const day = d.getDay();
+      return (day === 0 || day === 6) ? 'weekend' : 'weekday';
+    }
+
+    function percentile(values, p) {
+      if (!values || values.length === 0) return 0;
+      const sorted = [...values].sort((a, b) => a - b);
+      const idx = (p / 100) * (sorted.length - 1);
+      const floor = Math.floor(idx);
+      const ceil = Math.ceil(idx);
+      if (floor === ceil) return sorted[floor];
+      return sorted[floor] + (sorted[ceil] - sorted[floor]) * (idx - floor);
+    }
+
+    function stddev(vals) {
+      if (!vals || vals.length < 2) return 0;
+      const mean = vals.reduce((a, b) => a + b, 0) / vals.length;
+      const sq = vals.map(v => (v - mean) ** 2);
+      return Math.sqrt(sq.reduce((a, b) => a + b, 0) / vals.length);
+    }
+
+    function coefficientOfVariation(vals) {
+      const mean = vals.reduce((a, b) => a + b, 0) / vals.length;
+      if (mean === 0) return 0;
+      return stddev(vals) / mean;
+    }
+
+    // ── Get filtered data ──
+    function getFilteredData() {
+      let data = [...measurements];
+      const from = document.getElementById('filterDateFrom').value;
+      const to = document.getElementById('filterDateTo').value;
+      const net = document.getElementById('filterNetwork').value;
+      const tp = document.getElementById('filterTimePeriod').value;
+      const dt = document.getElementById('filterDayType').value;
+      if (from) data = data.filter(r => r.date >= from);
+      if (to) data = data.filter(r => r.date <= to);
+      if (net) data = data.filter(r => r.network === net);
+      if (tp) data = data.filter(r => r.timePeriod === tp);
+      if (dt) data = data.filter(r => r.dayType === dt);
+      return data;
+    }
+
+    // ── Form functions ──
+    function getFormData() {
+      const dt = document.getElementById('formDatetime').value;
+      const network = document.getElementById('formNetwork').value;
+      const tokyo = parseFloat(document.getElementById('formTokyo').value);
+      const hk = parseFloat(document.getElementById('formHongKong').value);
+      const sg = parseFloat(document.getElementById('formSingapore').value);
+      const mb = parseFloat(document.getElementById('formMumbai').value);
+      const errors = [];
+      if (!dt) errors.push('Date/time required.');
+      if (!network) errors.push('Select a network.');
+      if (isNaN(tokyo) || tokyo < 0) errors.push('Tokyo must be non-negative.');
+      if (isNaN(hk) || hk < 0) errors.push('Hong Kong must be non-negative.');
+      if (isNaN(sg) || sg < 0) errors.push('Singapore must be non-negative.');
+      if (isNaN(mb) || mb < 0) errors.push('Mumbai must be non-negative.');
+      return { dt, network, tokyo, hk, sg, mb, errors };
+    }
+
+    function setCurrentDateTime() {
+      const now = new Date();
+      const local = new Date(now.getTime() - now.getTimezoneOffset() * 60000);
+      document.getElementById('formDatetime').value = local.toISOString().slice(0, 16);
+    }
+
+    function submitMeasurement() {
+      if (!fileHandle) {
+        toast('⚠️ Please select or create a CSV file first.', 'error');
+        return;
+      }
+      const { dt, network, tokyo, hk, sg, mb, errors } = getFormData();
+      const valEl = document.getElementById('formValidation');
+      if (errors.length) {
+        valEl.className = 'validation-msg show error';
+        valEl.textContent = '⚠️ ' + errors.join(' ');
+        return;
+      }
+      valEl.className = 'validation-msg';
+      const dateObj = new Date(dt);
+      const dateStr = dateObj.toISOString().split('T')[0];
+      const timeStr = dateObj.toTimeString().slice(0, 8);
+      const hour = dateObj.getHours();
+      const timePeriod = getTimePeriod(hour);
+      const dayType = getDayType(dateStr);
+      const metrics = calcMetrics(tokyo, hk, sg, mb);
+      const record = {
+        id: '',
+        timestamp: dt,
+        date: dateStr,
+        time: timeStr,
+        network,
+        tokyo_ping: tokyo,
+        hongkong_ping: hk,
+        singapore_ping: sg,
+        mumbai_ping: mb,
+        average_ping: metrics.avg,
+        median_ping: metrics.median,
+        minimum_ping: metrics.min,
+        maximum_ping: metrics.max,
+        ping_range: metrics.range,
+        standard_deviation: metrics.stdev,
+        timePeriod,
+        dayType,
+        hour,
+        created_at: ''
+      };
+      addMeasurement(record);
+      // Clear form
+      document.getElementById('formNetwork').value = '';
+      document.getElementById('formTokyo').value = '';
+      document.getElementById('formHongKong').value = '';
+      document.getElementById('formSingapore').value = '';
+      document.getElementById('formMumbai').value = '';
+      setCurrentDateTime();
+      valEl.className = 'validation-msg show success';
+      valEl.textContent = '✅ Measurement saved to CSV!';
+      setTimeout(() => valEl.className = 'validation-msg', 3000);
+      updateAll();
+      toast('📊 Measurement saved.', 'success');
+    }
+
+    function handleDelete(id) {
+      if (!confirm('Delete this measurement?')) return;
+      deleteMeasurement(id);
+      updateAll();
+      toast('🗑 Deleted.', 'info');
+    }
+
+    // ── Export/Import ──
+    function exportCSV() {
+      if (measurements.length === 0) { toast('No data to export.', 'error'); return; }
+      const csv = measurementsToCSV(measurements);
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `ping_data_${new Date().toISOString().slice(0,10)}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast('⬇ Exported.', 'success');
+    }
+
+    function importCSV(file) {
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const text = e.target.result;
+          const imported = csvToMeasurements(text);
+          if (!imported.length) { toast('No valid records.', 'warning'); return; }
+          let added = 0;
+          for (const rec of imported) {
+            if (!measurements.some(r => r.id === rec.id)) {
+              measurements.push(rec);
+              added++;
+            }
+          }
+          if (!added) { toast('No new records (duplicates).', 'warning'); return; }
+          // Recalc
+          for (const r of measurements) {
+            const t = r.tokyo_ping || 0;
+            const hk = r.hongkong_ping || 0;
+            const sg = r.singapore_ping || 0;
+            const mb = r.mumbai_ping || 0;
+            const metrics = calcMetrics(t, hk, sg, mb);
+            r.average_ping = metrics.avg;
+            r.median_ping = metrics.median;
+            r.minimum_ping = metrics.min;
+            r.maximum_ping = metrics.max;
+            r.ping_range = metrics.range;
+            r.standard_deviation = metrics.stdev;
+          }
+          if (fileHandle) {
+            writeCSV(measurements);
+          } else {
+            saveToLocalStorage();
+          }
+          updateAll();
+          toast(`✅ Imported ${added} measurements.`, 'success');
+        } catch (err) {
+          toast('❌ Error: ' + err.message, 'error');
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    // ── Toast ──
+    function toast(msg, type = 'info') {
+      const el = document.getElementById('toast');
+      el.textContent = msg;
+      el.className = 'toast show ' + type;
+      clearTimeout(el._timeout);
+      el._timeout = setTimeout(() => el.className = 'toast', 3000);
+    }
+
+    // ── Clock ──
+    function updateClock() {
+      const now = new Date();
+      document.getElementById('headerClock').textContent = now.toLocaleTimeString('en-LK', { hour12: false });
+      document.getElementById('headerDate').textContent = now.toLocaleDateString('en-LK', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      });
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    //  RENDER FUNCTIONS (full implementation)
+    // ═══════════════════════════════════════════════════════════════════════
+
+    function renderTable() {
+      const data = getFilteredData();
+      const tbody = document.getElementById('tableBody');
+      document.getElementById('tableCount').textContent = data.length + ' records';
+      document.getElementById('footerCount').textContent = measurements.length;
+      if (data.length === 0) {
+        tbody.innerHTML =
+          `<tr><td colspan="15" class="empty-state">No measurements match filters.</td></tr>`;
+        return;
+      }
+      const sorted = [...data].sort((a, b) => {
+        let va = a[sortField] ?? '',
+          vb = b[sortField] ?? '';
+        if (typeof va === 'string') va = va.toLowerCase();
+        if (typeof vb === 'string') vb = vb.toLowerCase();
+        if (va < vb) return sortAsc ? -1 : 1;
+        if (va > vb) return sortAsc ? 1 : -1;
+        return 0;
+      });
+      let html = '';
+      for (const r of sorted) {
+        const score = calculateRecordScore(r);
+        html += `<tr>
+          <td>${r.date}</td><td>${r.time}</td>
+          <td><span class="badge badge-blue">${r.network}</span></td>
+          <td>${r.tokyo_ping?.toFixed(1) || '—'}</td>
+          <td>${r.hongkong_ping?.toFixed(1) || '—'}</td>
+          <td>${r.singapore_ping?.toFixed(1) || '—'}</td>
+          <td>${r.mumbai_ping?.toFixed(1) || '—'}</td>
+          <td><strong>${r.average_ping?.toFixed(1) || '—'}</strong></td>
+          <td>${r.median_ping?.toFixed(1) || '—'}</td>
+          <td>${r.minimum_ping?.toFixed(1) || '—'}</td>
+          <td>${r.maximum_ping?.toFixed(1) || '—'}</td>
+          <td>${r.ping_range?.toFixed(1) || '—'}</td>
+          <td>${r.standard_deviation?.toFixed(1) || '—'}</td>
+          <td>${score?.toFixed(1) || '—'}</td>
+          <td><button class="btn btn-danger btn-sm" onclick="handleDelete('${r.id}')">🗑</button></td>
+        </tr>`;
+      }
+      tbody.innerHTML = html;
+    }
+
+    function calculateRecordScore(r) {
+      const avg = r.average_ping || 0;
+      const stdev = r.standard_deviation || 0;
+      const range = r.ping_range || 0;
+      const avgScore = Math.max(0, 100 - avg * 0.8);
+      const stdevScore = Math.max(0, 100 - stdev * 2);
+      const rangeScore = Math.max(0, 100 - range * 1.5);
+      return avgScore * 0.5 + stdevScore * 0.3 + rangeScore * 0.2;
+    }
+
+    // ── Table sorting ──
+    document.getElementById('tableHead').addEventListener('click', (e) => {
+      const th = e.target.closest('th');
+      if (!th || !th.dataset.sort) return;
+      const field = th.dataset.sort;
+      if (sortField === field) sortAsc = !sortAsc;
+      else { sortField = field;
+        sortAsc = true; }
+      renderTable();
+      const icon = th.querySelector('.sort-icon');
+      if (icon) icon.textContent = sortAsc ? '↑' : '↓';
+    });
+
+    // ── KPIs ──
+    function renderKPIs() {
+      const data = measurements;
+      const total = data.length;
+      document.getElementById('kpiTotal').textContent = total;
+      const days = new Set(data.map(r => r.date)).size;
+      document.getElementById('kpiDays').textContent = days;
+      if (total === 0) {
+        ['kpiBestNet', 'kpiLowestAvg', 'kpiLowestMed', 'kpiBestStab', 'kpiBestP95', 'kpiWinRate'].forEach(id =>
+          document.getElementById(id).textContent = '—');
+        return;
+      }
+      const nets = ['Mobitel', 'Dialog', 'Hutch', 'Airtel'];
+      const netData = {};
+      for (const n of nets) {
+        const recs = data.filter(r => r.network === n);
+        if (!recs.length) { netData[n] = null; continue; }
+        const avgs = recs.map(r => r.average_ping);
+        netData[n] = {
+          avg: avgs.reduce((a, b) => a + b, 0) / avgs.length,
+          median: percentile(avgs, 50),
+          stdev: stddev(avgs),
+          p95: percentile(avgs, 95),
+        };
+      }
+      let bestAvg = Infinity,
+        bestAvgNet = '—';
+      let bestMed = Infinity,
+        bestMedNet = '—';
+      let bestStab = Infinity,
+        bestStabNet = '—';
+      let bestP95 = Infinity,
+        bestP95Net = '—';
+      for (const [n, d] of Object.entries(netData)) {
+        if (!d) continue;
+        if (d.avg < bestAvg) { bestAvg = d.avg;
+          bestAvgNet = n; }
+        if (d.median < bestMed) { bestMed = d.median;
+          bestMedNet = n; }
+        if (d.stdev < bestStab) { bestStab = d.stdev;
+          bestStabNet = n; }
+        if (d.p95 < bestP95) { bestP95 = d.p95;
+          bestP95Net = n; }
+      }
+      document.getElementById('kpiBestNet').textContent = bestAvgNet;
+      document.getElementById('kpiLowestAvg').textContent = bestAvg !== Infinity ? bestAvg.toFixed(1) + ' ms' : '—';
+      document.getElementById('kpiLowestMed').textContent = bestMed !== Infinity ? bestMed.toFixed(1) + ' ms' : '—';
+      document.getElementById('kpiBestStab').textContent = bestStab !== Infinity ? bestStab.toFixed(1) + ' σ' : '—';
+      document.getElementById('kpiBestP95').textContent = bestP95 !== Infinity ? bestP95.toFixed(1) + ' ms' : '—';
+      // Win rate
+      const wins = { Mobitel: 0, Dialog: 0, Hutch: 0, Airtel: 0 };
+      const dates = [...new Set(data.map(r => r.date))];
+      for (const d of dates) {
+        const dayRecs = data.filter(r => r.date === d);
+        const byNet = {};
+        for (const n of nets) {
+          const nr = dayRecs.filter(r => r.network === n);
+          if (nr.length) byNet[n] = nr.reduce((s, r) => s + r.average_ping, 0) / nr.length;
+        }
+        const entries = Object.entries(byNet);
+        if (entries.length < 2) continue;
+        const best = entries.reduce((a, b) => a[1] < b[1] ? a : b);
+        wins[best[0]] = (wins[best[0]] || 0) + 1;
+      }
+      const totalWins = Object.values(wins).reduce((a, b) => a + b, 0);
+      let bestWinRate = 0,
+        bestWinNet = '—';
+      for (const [n, w] of Object.entries(wins)) {
+        const rate = totalWins > 0 ? (w / totalWins) * 100 : 0;
+        if (rate > bestWinRate) { bestWinRate = rate;
+          bestWinNet = n; }
+      }
+      document.getElementById('kpiWinRate').textContent = bestWinNet !== '—' ? bestWinNet + ' (' + bestWinRate.toFixed(1) +
+        '%)' : '—';
+    }
+
+    // ── Recommendation ──
+    function renderRecommendation() {
+      const data = measurements;
+      const recNet = document.getElementById('recNetwork');
+      const recSub = document.getElementById('recSubtext');
+      const recAvg = document.getElementById('recAvg');
+      const recMed = document.getElementById('recMed');
+      const recP95 = document.getElementById('recP95');
+      const recStab = document.getElementById('recStab');
+      const recWin = document.getElementById('recWin');
+      const recCount = document.getElementById('recCount');
+
+      if (data.length < 4) {
+        recNet.textContent = '—';
+        recSub.textContent = '⚠️ Insufficient data (need ≥4)';
+        ['recAvg', 'recMed', 'recP95', 'recStab', 'recWin'].forEach(id => document.getElementById(id).textContent = '—');
+        recCount.textContent = data.length;
+        return;
+      }
+      const nets = ['Mobitel', 'Dialog', 'Hutch', 'Airtel'];
+      const scores = {};
+      for (const n of nets) {
+        const recs = data.filter(r => r.network === n);
+        if (recs.length < 2) { scores[n] = -Infinity; continue; }
+        const avgs = recs.map(r => r.average_ping);
+        const stdevs = recs.map(r => r.standard_deviation);
+        const avg = avgs.reduce((a, b) => a + b, 0) / avgs.length;
+        const p95 = percentile(avgs, 95);
+        const stdev = stdevs.reduce((a, b) => a + b, 0) / stdevs.length;
+        const winRate = calculateWinRateForNetwork(n, data);
+        const latencyScore = Math.max(0, 100 - avg * 0.7);
+        const stabilityScore = Math.max(0, 100 - stdev * 2.5);
+        const p95Score = Math.max(0, 100 - p95 * 0.6);
+        const reliabilityScore = recs.length / data.length * 100;
+        scores[n] = latencyScore * 0.40 + stabilityScore * 0.20 + p95Score * 0.20 + reliabilityScore * 0.10 + winRate *
+          0.10;
+      }
+      let best = '—',
+        bestScore = -Infinity;
+      for (const [n, s] of Object.entries(scores)) {
+        if (s > bestScore) { bestScore = s;
+          best = n; }
+      }
+      if (best === '—' || bestScore < 10) {
+        recNet.textContent = '—';
+        recSub.textContent = '⚠️ Not enough reliable data.';
+        return;
+      }
+      const bestRecs = data.filter(r => r.network === best);
+      const bAvgs = bestRecs.map(r => r.average_ping);
+      const bStdevs = bestRecs.map(r => r.standard_deviation);
+      const avg = bAvgs.reduce((a, b) => a + b, 0) / bAvgs.length;
+      const med = percentile(bAvgs, 50);
+      const p95 = percentile(bAvgs, 95);
+      const stdev = bStdevs.reduce((a, b) => a + b, 0) / bStdevs.length;
+      const winRate = calculateWinRateForNetwork(best, data);
+
+      recNet.textContent = best;
+      recSub.textContent = `🏆 Based on ${data.length} measurements, ${new Set(data.map(r=>r.date)).size} days`;
+      recAvg.textContent = avg.toFixed(1) + ' ms';
+      recMed.textContent = med.toFixed(1) + ' ms';
+      recP95.textContent = p95.toFixed(1) + ' ms';
+      recStab.textContent = stdev < 10 ? 'Excellent' : stdev < 20 ? 'Good' : stdev < 35 ? 'Moderate' : 'Variable';
+      recWin.textContent = winRate.toFixed(1) + '%';
+      recCount.textContent = bestRecs.length;
+    }
+
+    function calculateWinRateForNetwork(network, data) {
+      const nets = ['Mobitel', 'Dialog', 'Hutch', 'Airtel'];
+      const dates = [...new Set(data.map(r => r.date))];
+      let wins = 0,
+        total = 0;
+      for (const d of dates) {
+        const dayRecs = data.filter(r => r.date === d);
+        const byNet = {};
+        for (const n of nets) {
+          const nr = dayRecs.filter(r => r.network === n);
+          if (nr.length) byNet[n] = nr.reduce((s, r) => s + r.average_ping, 0) / nr.length;
+        }
+        const entries = Object.entries(byNet);
+        if (entries.length < 2) continue;
+        const best = entries.reduce((a, b) => a[1] < b[1] ? a : b);
+        if (best[0] === network) wins++;
+        total++;
+      }
+      return total > 0 ? (wins / total) * 100 : 0;
+    }
+
+    // ── Charts (full implementation) ──
+    function destroyChart(key) { if (chartInstances[key]) { chartInstances[key].destroy();
+        delete chartInstances[key]; } }
+
+    function renderCharts() {
+      const data = measurements;
+      if (data.length === 0) {
+        for (const key of Object.keys(chartInstances)) destroyChart(key);
+        return;
+      }
+      renderOverviewChart(data);
+      renderDistributionChart(data);
+      renderDailyTrendChart(data);
+      renderDailyRankChart(data);
+      renderTimeOfDayChart(data);
+      renderTimeP95Chart(data);
+      renderServerCompareChart(data);
+      renderServerHeatmapChart(data);
+      renderStabilityChart(data);
+      renderCVChart(data);
+      renderP95Chart(data);
+      renderMaxLatencyChart(data);
+      renderWinRateChart(data);
+      renderWinCountsChart(data);
+      renderHeatmapChart(data);
+      renderHeatmapServerChart(data);
+      renderOutliersChart(data);
+      renderOutlierSummaryChart(data);
+    }
+
+    // Helper to get network colors
+    const netColors = { Mobitel: '#0b2b5c', Dialog: '#1a7a4a', Hutch: '#c0392b', Airtel: '#b9770e' };
+    const netList = ['Mobitel', 'Dialog', 'Hutch', 'Airtel'];
+
+    function renderOverviewChart(data) {
+      const canvas = document.getElementById('chartOverview');
+      destroyChart('overview');
+      const avgs = netList.map(n => {
+        const recs = data.filter(r => r.network === n);
+        return recs.length ? recs.reduce((s, r) => s + r.average_ping, 0) / recs.length : 0;
+      });
+      chartInstances['overview'] = new Chart(canvas, {
+        type: 'bar',
+        data: { labels: netList, datasets: [{ label: 'Avg Ping (ms)', data: avgs, backgroundColor: netList.map(n =>
+            netColors[n] + 'cc'), borderColor: netList.map(n => netColors[n]), borderWidth: 2 }] },
+        options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+      });
+    }
+
+    function renderDistributionChart(data) {
+      const canvas = document.getElementById('chartDistribution');
+      destroyChart('distribution');
+      const datasets = netList.map(n => {
+        const recs = data.filter(r => r.network === n);
+        if (!recs.length) return null;
+        const avgs = recs.map(r => r.average_ping).sort((a, b) => a - b);
+        return { network: n, min: avgs[0], q1: percentile(avgs, 25), median: percentile(avgs, 50), q3: percentile(avgs,
+            75), max: avgs[avgs.length - 1], color: netColors[n] };
+      }).filter(d => d);
+      if (!datasets.length) return;
+      const labels = datasets.map(d => d.network);
+      const medians = datasets.map(d => d.median);
+      chartInstances['distribution'] = new Chart(canvas, {
+        type: 'bar',
+        data: { labels, datasets: [{ label: 'Median', data: medians, backgroundColor: datasets.map(d => d.color +
+            '99'), borderColor: datasets.map(d => d.color), borderWidth: 2 }] },
+        options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } },
+        plugins: [{
+          id: 'rangeAnnotation',
+          afterDraw: function(chart) {
+            const ctx = chart.ctx;
+            const meta = chart.getDatasetMeta(0);
+            const xScale = chart.scales.x;
+            const yScale = chart.scales.y;
+            for (let i = 0; i < meta.data.length; i++) {
+              const x = meta.data[i].x;
+              const d = datasets[i];
+              if (!d) continue;
+              const yMin = yScale.getPixelForValue(d.min);
+              const yMax = yScale.getPixelForValue(d.max);
+              const yQ1 = yScale.getPixelForValue(d.q1);
+              const yQ3 = yScale.getPixelForValue(d.q3);
+              const yMed = yScale.getPixelForValue(d.median);
+              ctx.beginPath();
+              ctx.moveTo(x, yMin);
+              ctx.lineTo(x, yMax);
+              ctx.strokeStyle = d.color;
+              ctx.lineWidth = 1.5;
+              ctx.stroke();
+              ctx.fillStyle = d.color + '33';
+              ctx.fillRect(x - 12, yQ3, 24, yQ1 - yQ3);
+              ctx.strokeStyle = d.color;
+              ctx.lineWidth = 1.5;
+              ctx.strokeRect(x - 12, yQ3, 24, yQ1 - yQ3);
+              ctx.beginPath();
+              ctx.moveTo(x - 12, yMed);
+              ctx.lineTo(x + 12, yMed);
+              ctx.strokeStyle = d.color;
+              ctx.lineWidth = 2.5;
+              ctx.stroke();
+              ctx.beginPath();
+              ctx.moveTo(x - 5, yMin);
+              ctx.lineTo(x + 5, yMin);
+              ctx.stroke();
+              ctx.beginPath();
+              ctx.moveTo(x - 5, yMax);
+              ctx.lineTo(x + 5, yMax);
+              ctx.stroke();
+            }
+          }
+        }]
+      });
+    }
+
+    function renderDailyTrendChart(data) {
+      const canvas = document.getElementById('chartDaily');
+      destroyChart('daily');
+      const dates = [...new Set(data.map(r => r.date))].sort();
+      const datasets = netList.map((n, i) => {
+        const vals = dates.map(d => {
+          const recs = data.filter(r => r.date === d && r.network === n);
+          return recs.length ? recs.reduce((s, r) => s + r.average_ping, 0) / recs.length : null;
+        });
+        return { label: n, data: vals, borderColor: netColors[n], backgroundColor: netColors[n] + '22', fill: true,
+          tension: 0.3, pointRadius: 3, spanGaps: true };
+      });
+      chartInstances['daily'] = new Chart(canvas, {
+        type: 'line',
+        data: { labels: dates, datasets },
+        options: { responsive: true, plugins: { legend: { position: 'top' } }, scales: { y: { beginAtZero: true } } }
+      });
+    }
+
+    function renderDailyRankChart(data) {
+      const canvas = document.getElementById('chartDailyRank');
+      destroyChart('dailyRank');
+      const dates = [...new Set(data.map(r => r.date))].sort();
+      const rankData = dates.map(d => {
+        const dayRecs = data.filter(r => r.date === d);
+        const avgs = {};
+        for (const n of netList) {
+          const recs = dayRecs.filter(r => r.network === n);
+          avgs[n] = recs.length ? recs.reduce((s, r) => s + r.average_ping, 0) / recs.length : Infinity;
+        }
+        const sorted = Object.entries(avgs).sort((a, b) => a[1] - b[1]);
+        const ranks = {};
+        sorted.forEach(([n], idx) => ranks[n] = idx + 1);
+        return { date: d, ranks };
+      });
+      const datasets = netList.map((n, i) => ({
+        label: n,
+        data: rankData.map(d => d.ranks[n] || null),
+        borderColor: netColors[n],
+        backgroundColor: netColors[n] + '22',
+        fill: false,
+        tension: 0.2,
+        pointRadius: 4,
+        spanGaps: true
+      }));
+      chartInstances['dailyRank'] = new Chart(canvas, {
+        type: 'line',
+        data: { labels: dates.map(d => d), datasets },
+        options: { responsive: true, plugins: { legend: { position: 'top' } }, scales: { y: { reverse: true, min: 0.5,
+              max: 4.5, ticks: { stepSize: 1 } } } }
+      });
+    }
+
+    function renderTimeOfDayChart(data) {
+      const canvas = document.getElementById('chartTimeOfDay');
+      destroyChart('timeOfDay');
+      const periods = ['Early Morning', 'Morning', 'Afternoon', 'Evening', 'Night'];
+      const datasets = netList.map((n, i) => {
+        const vals = periods.map(p => {
+          const recs = data.filter(r => r.network === n && r.timePeriod === p);
+          return recs.length ? recs.reduce((s, r) => s + r.average_ping, 0) / recs.length : null;
+        });
+        return { label: n, data: vals, borderColor: netColors[n], backgroundColor: netColors[n] + '33', fill: true,
+          tension: 0.3, pointRadius: 4, spanGaps: true };
+      });
+      chartInstances['timeOfDay'] = new Chart(canvas, {
+        type: 'radar',
+        data: { labels: periods, datasets },
+        options: { responsive: true, plugins: { legend: { position: 'top' } }, scales: { r: { beginAtZero: true } } }
+      });
+    }
+
+    function renderTimeP95Chart(data) {
+      const canvas = document.getElementById('chartTimeP95');
+      destroyChart('timeP95');
+      const periods = ['Early Morning', 'Morning', 'Afternoon', 'Evening', 'Night'];
+      const datasets = netList.map((n, i) => {
+        const vals = periods.map(p => {
+          const recs = data.filter(r => r.network === n && r.timePeriod === p);
+          if (recs.length < 3) return null;
+          const avgs = recs.map(r => r.average_ping);
+          return percentile(avgs, 95);
+        });
+        return { label: n, data: vals, borderColor: netColors[n], backgroundColor: netColors[n] + '33', fill: false,
+          tension: 0.3, pointRadius: 4, spanGaps: true };
+      });
+      chartInstances['timeP95'] = new Chart(canvas, {
+        type: 'line',
+        data: { labels: periods, datasets },
+        options: { responsive: true, plugins: { legend: { position: 'top' } }, scales: { y: { beginAtZero: true } } }
+      });
+    }
+
+    function renderServerCompareChart(data) {
+      const canvas = document.getElementById('chartServerCompare');
+      destroyChart('serverCompare');
+      const servers = ['Tokyo', 'Hong Kong', 'Singapore', 'Mumbai'];
+      const serverKeys = ['tokyo_ping', 'hongkong_ping', 'singapore_ping', 'mumbai_ping'];
+      const datasets = netList.map((n, i) => {
+        const vals = serverKeys.map(key => {
+          const recs = data.filter(r => r.network === n);
+          if (!recs.length) return 0;
+          const pings = recs.map(r => r[key]).filter(v => v !== undefined && v !== null);
+          return pings.length ? pings.reduce((a, b) => a + b, 0) / pings.length : 0;
+        });
+        return { label: n, data: vals, backgroundColor: netColors[n] + '88', borderColor: netColors[n], borderWidth: 2 };
+      });
+      chartInstances['serverCompare'] = new Chart(canvas, {
+        type: 'bar',
+        data: { labels: servers, datasets },
+        options: { responsive: true, plugins: { legend: { position: 'top' } }, scales: { y: { beginAtZero: true } } }
+      });
+    }
+
+    function renderServerHeatmapChart(data) {
+      const canvas = document.getElementById('chartServerHeatmap');
+      destroyChart('serverHeatmap');
+      const servers = ['Tokyo', 'Hong Kong', 'Singapore', 'Mumbai'];
+      const serverKeys = ['tokyo_ping', 'hongkong_ping', 'singapore_ping', 'mumbai_ping'];
+      const matrix = netList.map(n => {
+        return serverKeys.map(key => {
+          const recs = data.filter(r => r.network === n);
+          if (!recs.length) return 0;
+          const pings = recs.map(r => r[key]).filter(v => v !== undefined && v !== null);
+          return pings.length ? pings.reduce((a, b) => a + b, 0) / pings.length : 0;
+        });
+      });
+      const flat = matrix.flat();
+      const maxVal = Math.max(...flat, 1);
+      const datasets = netList.map((n, i) => ({
+        label: n,
+        data: matrix[i],
+        backgroundColor: matrix[i].map(v => {
+          const ratio = v / maxVal;
+          const r = Math.round(10 + 200 * ratio),
+            g = Math.round(180 - 150 * ratio),
+            b = Math.round(240 - 200 * ratio);
+          return `rgb(${r},${g},${b})`;
+        }),
+        borderColor: netColors[n],
+        borderWidth: 1,
+      }));
+      chartInstances['serverHeatmap'] = new Chart(canvas, {
+        type: 'bar',
+        data: { labels: servers, datasets },
+        options: { responsive: true, plugins: { legend: { position: 'top' } }, scales: { y: { beginAtZero: true } } }
+      });
+    }
+
+    function renderStabilityChart(data) {
+      const canvas = document.getElementById('chartStability');
+      destroyChart('stability');
+      const stdevs = netList.map(n => {
+        const recs = data.filter(r => r.network === n);
+        if (recs.length < 2) return 0;
+        const avgs = recs.map(r => r.average_ping);
+        return stddev(avgs);
+      });
+      chartInstances['stability'] = new Chart(canvas, {
+        type: 'bar',
+        data: { labels: netList, datasets: [{ label: 'Std Dev (ms)', data: stdevs, backgroundColor: netList.map(n =>
+            netColors[n] + '99'), borderColor: netList.map(n => netColors[n]), borderWidth: 2 }] },
+        options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+      });
+    }
+
+    function renderCVChart(data) {
+      const canvas = document.getElementById('chartCV');
+      destroyChart('cv');
+      const cvs = netList.map(n => {
+        const recs = data.filter(r => r.network === n);
+        if (recs.length < 2) return 0;
+        const avgs = recs.map(r => r.average_ping);
+        return coefficientOfVariation(avgs);
+      });
+      chartInstances['cv'] = new Chart(canvas, {
+        type: 'bar',
+        data: { labels: netList, datasets: [{ label: 'Coefficient of Variation', data: cvs, backgroundColor: netList
+            .map(n => netColors[n] + '99'), borderColor: netList.map(n => netColors[n]), borderWidth: 2 }] },
+        options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+      });
+    }
+
+    function renderP95Chart(data) {
+      const canvas = document.getElementById('chartP95');
+      destroyChart('p95');
+      const p95s = netList.map(n => {
+        const recs = data.filter(r => r.network === n);
+        if (recs.length < 3) return 0;
+        const avgs = recs.map(r => r.average_ping);
+        return percentile(avgs, 95);
+      });
+      chartInstances['p95'] = new Chart(canvas, {
+        type: 'bar',
+        data: { labels: netList, datasets: [{ label: 'P95 (ms)', data: p95s, backgroundColor: netList.map(n =>
+            netColors[n] + '99'), borderColor: netList.map(n => netColors[n]), borderWidth: 2 }] },
+        options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+      });
+    }
+
+    function renderMaxLatencyChart(data) {
+      const canvas = document.getElementById('chartMaxLatency');
+      destroyChart('maxLatency');
+      const maxes = netList.map(n => {
+        const recs = data.filter(r => r.network === n);
+        if (!recs.length) return 0;
+        return recs.reduce((max, r) => Math.max(max, r.maximum_ping), 0);
+      });
+      chartInstances['maxLatency'] = new Chart(canvas, {
+        type: 'bar',
+        data: { labels: netList, datasets: [{ label: 'Max Latency (ms)', data: maxes, backgroundColor: netList.map(
+            n => netColors[n] + '99'), borderColor: netList.map(n => netColors[n]), borderWidth: 2 }] },
+        options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+      });
+    }
+
+    function renderWinRateChart(data) {
+      const canvas = document.getElementById('chartWinRate');
+      destroyChart('winRate');
+      const rates = netList.map(n => calculateWinRateForNetwork(n, data));
+      chartInstances['winRate'] = new Chart(canvas, {
+        type: 'bar',
+        data: { labels: netList, datasets: [{ label: 'Win Rate (%)', data: rates, backgroundColor: netList.map(n =>
+            netColors[n] + '99'), borderColor: netList.map(n => netColors[n]), borderWidth: 2 }] },
+        options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true,
+              max: 100 } } }
+      });
+    }
+
+    function renderWinCountsChart(data) {
+      const canvas = document.getElementById('chartWinCounts');
+      destroyChart('winCounts');
+      const wins = {};
+      for (const n of netList) wins[n] = 0;
+      const dates = [...new Set(data.map(r => r.date))];
+      for (const d of dates) {
+        const dayRecs = data.filter(r => r.date === d);
+        const byNet = {};
+        for (const n of netList) {
+          const nr = dayRecs.filter(r => r.network === n);
+          if (nr.length) byNet[n] = nr.reduce((s, r) => s + r.average_ping, 0) / nr.length;
+        }
+        const entries = Object.entries(byNet);
+        if (entries.length < 2) continue;
+        const best = entries.reduce((a, b) => a[1] < b[1] ? a : b);
+        wins[best[0]] = (wins[best[0]] || 0) + 1;
+      }
+      const counts = netList.map(n => wins[n] || 0);
+      chartInstances['winCounts'] = new Chart(canvas, {
+        type: 'bar',
+        data: { labels: netList, datasets: [{ label: 'Daily Wins', data: counts, backgroundColor: netList.map(n =>
+            netColors[n] + '99'), borderColor: netList.map(n => netColors[n]), borderWidth: 2 }] },
+        options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+      });
+    }
+
+    function renderHeatmapChart(data) {
+      const canvas = document.getElementById('chartHeatmap');
+      destroyChart('heatmap');
+      const periods = ['Early Morning', 'Morning', 'Afternoon', 'Evening', 'Night'];
+      const matrix = netList.map(n => {
+        return periods.map(p => {
+          const recs = data.filter(r => r.network === n && r.timePeriod === p);
+          return recs.length ? recs.reduce((s, r) => s + r.average_ping, 0) / recs.length : null;
+        });
+      });
+      const flat = matrix.flat().filter(v => v !== null);
+      const maxVal = Math.max(...flat, 1);
+      const minVal = Math.min(...flat, 0);
+      const datasets = netList.map((n, i) => ({
+        label: n,
+        data: matrix[i],
+        backgroundColor: matrix[i].map(v => {
+          if (v === null) return '#e9eef4';
+          const ratio = (v - minVal) / (maxVal - minVal || 1);
+          const r = Math.round(10 + 200 * ratio),
+            g = Math.round(180 - 150 * ratio),
+            b = Math.round(240 - 200 * ratio);
+          return `rgb(${r},${g},${b})`;
+        }),
+        borderColor: netColors[n],
+        borderWidth: 1,
+      }));
+      chartInstances['heatmap'] = new Chart(canvas, {
+        type: 'bar',
+        data: { labels: periods, datasets },
+        options: { responsive: true, plugins: { legend: { position: 'top' } }, scales: { y: { beginAtZero: true } } }
+      });
+    }
+
+    function renderHeatmapServerChart(data) {
+      const canvas = document.getElementById('chartHeatmapServer');
+      destroyChart('heatmapServer');
+      const servers = ['Tokyo', 'Hong Kong', 'Singapore', 'Mumbai'];
+      const serverKeys = ['tokyo_ping', 'hongkong_ping', 'singapore_ping', 'mumbai_ping'];
+      const matrix = netList.map(n => {
+        return serverKeys.map(key => {
+          const recs = data.filter(r => r.network === n);
+          if (!recs.length) return null;
+          const pings = recs.map(r => r[key]).filter(v => v !== undefined && v !== null);
+          return pings.length ? pings.reduce((a, b) => a + b, 0) / pings.length : null;
+        });
+      });
+      const flat = matrix.flat().filter(v => v !== null);
+      const maxVal = Math.max(...flat, 1);
+      const minVal = Math.min(...flat, 0);
+      const datasets = netList.map((n, i) => ({
+        label: n,
+        data: matrix[i],
+        backgroundColor: matrix[i].map(v => {
+          if (v === null) return '#e9eef4';
+          const ratio = (v - minVal) / (maxVal - minVal || 1);
+          const r = Math.round(10 + 200 * ratio),
+            g = Math.round(180 - 150 * ratio),
+            b = Math.round(240 - 200 * ratio);
+          return `rgb(${r},${g},${b})`;
+        }),
+        borderColor: netColors[n],
+        borderWidth: 1,
+      }));
+      chartInstances['heatmapServer'] = new Chart(canvas, {
+        type: 'bar',
+        data: { labels: servers, datasets },
+        options: { responsive: true, plugins: { legend: { position: 'top' } }, scales: { y: { beginAtZero: true } } }
+      });
+    }
+
+    function renderOutliersChart(data) {
+      const canvas = document.getElementById('chartOutliers');
+      destroyChart('outliers');
+      const outlierPoints = [];
+      const serverKeys = ['tokyo_ping', 'hongkong_ping', 'singapore_ping', 'mumbai_ping'];
+      const serverLabels = ['Tokyo', 'Hong Kong', 'Singapore', 'Mumbai'];
+      for (const n of netList) {
+        const recs = data.filter(r => r.network === n);
+        for (const sk of serverKeys) {
+          const vals = recs.map(r => r[sk]).filter(v => v !== undefined && v !== null && !isNaN(v));
+          if (vals.length < 4) continue;
+          const sorted = [...vals].sort((a, b) => a - b);
+          const q1 = percentile(sorted, 25);
+          const q3 = percentile(sorted, 75);
+          const iqr = q3 - q1;
+          const lower = q1 - 1.5 * iqr;
+          const upper = q3 + 1.5 * iqr;
+          for (const r of recs) {
+            const val = r[sk];
+            if (val !== undefined && val !== null && !isNaN(val) && (val < lower || val > upper)) {
+              outlierPoints.push({ network: n, server: serverLabels[serverKeys.indexOf(sk)], value: val });
+            }
+          }
+        }
+      }
+      if (!outlierPoints.length) {
+        chartInstances['outliers'] = new Chart(canvas, {
+          type: 'bar',
+          data: { labels: ['No Outliers'], datasets: [{ label: 'Outliers', data: [0], backgroundColor: '#e9eef4' }] },
+          options: { responsive: true, plugins: { legend: { display: false } } }
+        });
+        return;
+      }
+      const groups = {};
+      for (const op of outlierPoints) {
+        const key = op.network + '|' + op.server;
+        if (!groups[key]) groups[key] = [];
+        groups[key].push(op);
+      }
+      const labels = Object.keys(groups);
+      const counts = labels.map(k => groups[k].length);
+      chartInstances['outliers'] = new Chart(canvas, {
+        type: 'bar',
+        data: { labels, datasets: [{ label: 'Outlier Count', data: counts, backgroundColor: '#c0392b88',
+            borderColor: '#c0392b', borderWidth: 2 }] },
+        options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+      });
+    }
+
+    function renderOutlierSummaryChart(data) {
+      const canvas = document.getElementById('chartOutlierSummary');
+      destroyChart('outlierSummary');
+      const counts = netList.map(n => {
+        let c = 0;
+        const recs = data.filter(r => r.network === n);
+        const serverKeys = ['tokyo_ping', 'hongkong_ping', 'singapore_ping', 'mumbai_ping'];
+        for (const sk of serverKeys) {
+          const vals = recs.map(r => r[sk]).filter(v => v !== undefined && v !== null && !isNaN(v));
+          if (vals.length < 4) continue;
+          const sorted = [...vals].sort((a, b) => a - b);
+          const q1 = percentile(sorted, 25);
+          const q3 = percentile(sorted, 75);
+          const iqr = q3 - q1;
+          const lower = q1 - 1.5 * iqr;
+          const upper = q3 + 1.5 * iqr;
+          for (const r of recs) {
+            const val = r[sk];
+            if (val !== undefined && val !== null && !isNaN(val) && (val < lower || val > upper)) c++;
+          }
+        }
+        return c;
+      });
+      chartInstances['outlierSummary'] = new Chart(canvas, {
+        type: 'bar',
+        data: { labels: netList, datasets: [{ label: 'Total Outliers', data: counts, backgroundColor: netList.map(
+            n => netColors[n] + '99'), borderColor: netList.map(n => netColors[n]), borderWidth: 2 }] },
+        options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+      });
+    }
+
+    // ── Analytics tables (simplified) ──
+    function renderAnalytics() {
+      renderDailyAnalysis();
+      renderTimeAnalysis();
+      renderServerAnalysis();
+      renderNetworkComparison();
+      renderStabilityAnalysis();
+      renderInteractionAnalysis();
+      renderAnomalies();
+      renderInsights();
+    }
+
+    function renderDailyAnalysis() {
+      const container = document.getElementById('dailyAnalysisContainer');
+      const data = measurements;
+      if (!data.length) { container.innerHTML = '<div class="empty-state">No data</div>'; return; }
+      const dates = [...new Set(data.map(r => r.date))].sort().reverse();
+      let html =
+        '<div class="table-wrap"><table><thead><tr><th>Date</th><th>Network</th><th>Count</th><th>Avg</th><th>Median</th><th>Min</th><th>Max</th><th>P95</th><th>StDev</th><th>Rank</th></tr></thead><tbody>';
+      for (const d of dates) {
+        const dayRecs = data.filter(r => r.date === d);
+        const byNet = {};
+        for (const n of netList) {
+          const nr = dayRecs.filter(r => r.network === n);
+          if (nr.length) {
+            const avgs = nr.map(r => r.average_ping);
+            byNet[n] = { count: nr.length, avg: avgs.reduce((a, b) => a + b, 0) / avgs.length, median: percentile(avgs,
+                50), min: Math.min(...avgs), max: Math.max(...avgs), p95: percentile(avgs, 95), stdev: stddev(avgs) };
+          }
+        }
+        const sorted = Object.entries(byNet).sort((a, b) => a[1].avg - b[1].avg);
+        sorted.forEach(([n, stats], idx) => {
+          html += `<tr><td>${idx===0 ? d : ''}</td><td><span class="badge badge-blue">${n}</span></td><td>${stats.count}</td>
+            <td><strong>${stats.avg.toFixed(1)}</strong></td><td>${stats.median.toFixed(1)}</td><td>${stats.min.toFixed(1)}</td>
+            <td>${stats.max.toFixed(1)}</td><td>${stats.p95.toFixed(1)}</td><td>${stats.stdev.toFixed(1)}</td><td>${idx+1}</td></tr>`;
+        });
+      }
+      html += '</tbody></table></div>';
+      container.innerHTML = html;
+    }
+
+    function renderTimeAnalysis() {
+      const container = document.getElementById('timeAnalysisContainer');
+      const data = measurements;
+      if (!data.length) { container.innerHTML = '<div class="empty-state">No data</div>'; return; }
+      const periods = ['Early Morning', 'Morning', 'Afternoon', 'Evening', 'Night'];
+      let html =
+        '<div class="table-wrap"><table><thead><tr><th>Time Period</th><th>Network</th><th>Count</th><th>Avg</th><th>Median</th><th>P95</th><th>StDev</th></tr></thead><tbody>';
+      for (const p of periods) {
+        const periodRecs = data.filter(r => r.timePeriod === p);
+        const byNet = {};
+        for (const n of netList) {
+          const nr = periodRecs.filter(r => r.network === n);
+          if (nr.length) {
+            const avgs = nr.map(r => r.average_ping);
+            byNet[n] = { count: nr.length, avg: avgs.reduce((a, b) => a + b, 0) / avgs.length, median: percentile(avgs,
+                50), p95: percentile(avgs, 95), stdev: stddev(avgs) };
+          }
+        }
+        const sorted = Object.entries(byNet).sort((a, b) => a[1].avg - b[1].avg);
+        sorted.forEach(([n, stats], idx) => {
+          html += `<tr><td>${idx===0 ? p : ''}</td><td><span class="badge badge-blue">${n}</span></td><td>${stats.count}</td>
+            <td><strong>${stats.avg.toFixed(1)}</strong></td><td>${stats.median.toFixed(1)}</td><td>${stats.p95.toFixed(1)}</td>
+            <td>${stats.stdev.toFixed(1)}</td></tr>`;
+        });
+      }
+      html += '</tbody></table></div>';
+      container.innerHTML = html;
+    }
+
+    function renderServerAnalysis() {
+      const container = document.getElementById('serverAnalysisContainer');
+      const data = measurements;
+      if (!data.length) { container.innerHTML = '<div class="empty-state">No data</div>'; return; }
+      const servers = ['Tokyo', 'Hong Kong', 'Singapore', 'Mumbai'];
+      const serverKeys = ['tokyo_ping', 'hongkong_ping', 'singapore_ping', 'mumbai_ping'];
+      let html =
+        '<div class="table-wrap"><table><thead><tr><th>Server</th><th>Network</th><th>Count</th><th>Avg</th><th>Median</th><th>Min</th><th>Max</th><th>P95</th><th>StDev</th></tr></thead><tbody>';
+      for (const [idx, svr] of servers.entries()) {
+        const key = serverKeys[idx];
+        const byNet = {};
+        for (const n of netList) {
+          const recs = data.filter(r => r.network === n);
+          const vals = recs.map(r => r[key]).filter(v => v !== undefined && v !== null && !isNaN(v));
+          if (vals.length) {
+            byNet[n] = { count: vals.length, avg: vals.reduce((a, b) => a + b, 0) / vals.length, median: percentile(
+                vals, 50), min: Math.min(...vals), max: Math.max(...vals), p95: percentile(vals, 95),
+              stdev: stddev(vals) };
+          }
+        }
+        const sorted = Object.entries(byNet).sort((a, b) => a[1].avg - b[1].avg);
+        sorted.forEach(([n, stats], i) => {
+          html += `<tr><td>${i===0 ? svr : ''}</td><td><span class="badge badge-blue">${n}</span></td><td>${stats.count}</td>
+            <td><strong>${stats.avg.toFixed(1)}</strong></td><td>${stats.median.toFixed(1)}</td><td>${stats.min.toFixed(1)}</td>
+            <td>${stats.max.toFixed(1)}</td><td>${stats.p95.toFixed(1)}</td><td>${stats.stdev.toFixed(1)}</td></tr>`;
+        });
+      }
+      html += '</tbody></table></div>';
+      container.innerHTML = html;
+    }
+
+    function renderNetworkComparison() {
+      const container = document.getElementById('networkComparisonContainer');
+      const data = measurements;
+      if (!data.length) { container.innerHTML = '<div class="empty-state">No data</div>'; return; }
+      let html =
+        '<div class="table-wrap"><table><thead><tr><th>Network</th><th>Count</th><th>Avg</th><th>Median</th><th>Min</th><th>Max</th><th>P95</th><th>StDev</th><th>CV</th><th>Win Rate</th><th>Best Server</th><th>Worst Server</th></tr></thead><tbody>';
+      for (const n of netList) {
+        const recs = data.filter(r => r.network === n);
+        if (!recs.length) { html +=
+            `<tr><td>${n}</td><td colspan="11">No data</td></tr>`; continue; }
+        const avgs = recs.map(r => r.average_ping);
+        const serverKeys = ['tokyo_ping', 'hongkong_ping', 'singapore_ping', 'mumbai_ping'];
+        const serverLabels = ['Tokyo', 'Hong Kong', 'Singapore', 'Mumbai'];
+        const serverAvgs = serverKeys.map(key => {
+          const vals = recs.map(r => r[key]).filter(v => v !== undefined && v !== null && !isNaN(v));
+          return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : Infinity;
+        });
+        let bestSvr = '—',
+          worstSvr = '—',
+          bestVal = Infinity,
+          worstVal = -Infinity;
+        for (let i = 0; i < serverAvgs.length; i++) {
+          if (serverAvgs[i] < bestVal) { bestVal = serverAvgs[i];
+            bestSvr = serverLabels[i]; }
+          if (serverAvgs[i] > worstVal && serverAvgs[i] !== Infinity) { worstVal = serverAvgs[i];
+            worstSvr = serverLabels[i]; }
+        }
+        html += `<tr><td><span class="badge badge-blue">${n}</span></td><td>${recs.length}</td>
+          <td><strong>${(avgs.reduce((a,b)=>a+b,0)/avgs.length).toFixed(1)}</strong></td>
+          <td>${percentile(avgs,50).toFixed(1)}</td><td>${Math.min(...avgs).toFixed(1)}</td>
+          <td>${Math.max(...avgs).toFixed(1)}</td><td>${percentile(avgs,95).toFixed(1)}</td>
+          <td>${stddev(avgs).toFixed(1)}</td><td>${coefficientOfVariation(avgs).toFixed(2)}</td>
+          <td>${calculateWinRateForNetwork(n,data).toFixed(1)}%</td>
+          <td>${bestSvr}</td><td>${worstSvr}</td></tr>`;
+      }
+      html += '</tbody></table></div>';
+      container.innerHTML = html;
+    }
+
+    function renderStabilityAnalysis() {
+      const container = document.getElementById('stabilityContainer');
+      const data = measurements;
+      if (!data.length) { container.innerHTML = '<div class="empty-state">No data</div>'; return; }
+      let html =
+        '<div class="table-wrap"><table><thead><tr><th>Network</th><th>StDev (σ)</th><th>CV</th><th>Range</th><th>P90</th><th>P95</th><th>P99</th><th>Stability Score</th></tr></thead><tbody>';
+      for (const n of netList) {
+        const recs = data.filter(r => r.network === n);
+        if (recs.length < 2) { html +=
+            `<tr><td>${n}</td><td colspan="7">Insufficient</td></tr>`; continue; }
+        const avgs = recs.map(r => r.average_ping);
+        const stdev = stddev(avgs);
+        const cv = coefficientOfVariation(avgs);
+        const range = Math.max(...avgs) - Math.min(...avgs);
+        const p90 = percentile(avgs, 90);
+        const p95 = percentile(avgs, 95);
+        const p99 = percentile(avgs, 99);
+        const score = Math.max(0, 100 - (stdev * 2.5 + cv * 10 + range * 0.5));
+        const grade = score > 80 ? '🟢 Excellent' : score > 60 ? '🟡 Good' : score > 40 ? '🟠 Moderate' : '🔴 Poor';
+        html += `<tr><td><span class="badge badge-blue">${n}</span></td><td>${stdev.toFixed(1)}</td><td>${cv.toFixed(2)}</td>
+          <td>${range.toFixed(1)}</td><td>${p90.toFixed(1)}</td><td>${p95.toFixed(1)}</td><td>${p99.toFixed(1)}</td>
+          <td><strong>${score.toFixed(0)}</strong> ${grade}</td></tr>`;
+      }
+      html += '</tbody></table></div>';
+      container.innerHTML = html;
+    }
+
+    function renderInteractionAnalysis() {
+      const container = document.getElementById('interactionContainer');
+      const data = measurements;
+      if (!data.length) { container.innerHTML = '<div class="empty-state">No data</div>'; return; }
+      const periods = ['Early Morning', 'Morning', 'Afternoon', 'Evening', 'Night'];
+      let html =
+        '<div class="table-wrap"><table><thead><tr><th>Time Period</th>';
+      for (const n of netList) html += `<th>${n}</th>`;
+      html += '<th>Best</th><th>Worst</th></tr></thead><tbody>';
+      for (const p of periods) {
+        const periodRecs = data.filter(r => r.timePeriod === p);
+        const byNet = {};
+        for (const n of netList) {
+          const nr = periodRecs.filter(r => r.network === n);
+          if (nr.length) byNet[n] = nr.reduce((s, r) => s + r.average_ping, 0) / nr.length;
+        }
+        const entries = Object.entries(byNet);
+        if (!entries.length) { html +=
+            `<tr><td>${p}</td><td colspan="${netList.length+2}">No data</td></tr>`; continue; }
+        const sorted = entries.sort((a, b) => a[1] - b[1]);
+        html += `<tr><td><strong>${p}</strong></td>`;
+        for (const n of netList) {
+          html += `<td>${byNet[n] !== undefined ? byNet[n].toFixed(1) : '—'}</td>`;
+        }
+        html += `<td><span class="badge badge-green">${sorted[0][0]}</span></td>`;
+        html += `<td><span class="badge badge-red">${sorted[sorted.length-1][0]}</span></td></tr>`;
+      }
+      html += '</tbody></table></div>';
+      container.innerHTML = html;
+    }
+
+    function renderAnomalies() {
+      const container = document.getElementById('anomaliesContainer');
+      const data = measurements;
+      if (!data.length) { container.innerHTML = '<div class="empty-state">No data</div>'; return; }
+      const anomalies = [];
+      const serverKeys = ['tokyo_ping', 'hongkong_ping', 'singapore_ping', 'mumbai_ping'];
+      const serverLabels = ['Tokyo', 'Hong Kong', 'Singapore', 'Mumbai'];
+      for (const n of netList) {
+        const recs = data.filter(r => r.network === n);
+        for (const sk of serverKeys) {
+          const vals = recs.map(r => r[sk]).filter(v => v !== undefined && v !== null && !isNaN(v));
+          if (vals.length < 4) continue;
+          const sorted = [...vals].sort((a, b) => a - b);
+          const q1 = percentile(sorted, 25);
+          const q3 = percentile(sorted, 75);
+          const iqr = q3 - q1;
+          const lower = q1 - 1.5 * iqr;
+          const upper = q3 + 1.5 * iqr;
+          for (const r of recs) {
+            const val = r[sk];
+            if (val !== undefined && val !== null && !isNaN(val) && (val < lower || val > upper)) {
+              anomalies.push({
+                date: r.date,
+                time: r.time,
+                network: n,
+                server: serverLabels[serverKeys.indexOf(sk)],
+                value: val,
+                normalRange: `${lower.toFixed(1)}–${upper.toFixed(1)}`,
+                severity: val > upper ? 'High' : 'Low'
+              });
+            }
+          }
+        }
+      }
+      if (!anomalies.length) {
+        container.innerHTML =
+          '<div class="empty-state" style="color:#1e7e34;">✅ No anomalies detected.</div>';
+        return;
+      }
+      let html =
+        `<div style="margin-bottom:8px;color:#c0392b;font-weight:500;">⚠️ ${anomalies.length} anomaly(ies)</div><div class="table-wrap"><table><thead><tr><th>Date</th><th>Time</th><th>Network</th><th>Server</th><th>Value (ms)</th><th>Normal Range</th><th>Severity</th></tr></thead><tbody>`;
+      for (const a of anomalies) {
+        html += `<tr><td>${a.date}</td><td>${a.time}</td><td><span class="badge badge-blue">${a.network}</span></td>
+          <td>${a.server}</td><td><strong>${a.value.toFixed(1)}</strong></td><td>${a.normalRange}</td>
+          <td><span class="badge ${a.severity==='High' ? 'badge-red' : 'badge-gold'}">${a.severity}</span></td></tr>`;
+      }
+      html += '</tbody></table></div>';
+      container.innerHTML = html;
+    }
+
+    // ── Insights ──
+    function renderInsights() {
+      const list = document.getElementById('insightList');
+      const data = measurements;
+      if (data.length < 3) {
+        list.innerHTML =
+          `<li style="border-left-color:#b0c4de;background:#f4f7fc;color:#6a7a8e;">Add more measurements (≥3) for insights.</li>`;
+        return;
+      }
+      const insights = [];
+      // Best overall
+      const netAvgs = {};
+      for (const n of netList) {
+        const recs = data.filter(r => r.network === n);
+        if (recs.length) netAvgs[n] = recs.reduce((s, r) => s + r.average_ping, 0) / recs.length;
+      }
+      const sorted = Object.entries(netAvgs).sort((a, b) => a[1] - b[1]);
+      if (sorted.length) {
+        insights.push(
+          `🏆 <strong>${sorted[0][0]}</strong> has lowest avg ping (${sorted[0][1].toFixed(1)} ms).`);
+        if (sorted.length > 1 && (sorted[1][1] - sorted[0][1]) < 5) {
+          insights.push(
+            `📊 Difference between <strong>${sorted[0][0]}</strong> and <strong>${sorted[1][0]}</strong> is small (${(sorted[1][1]-sorted[0][1]).toFixed(1)} ms).`);
+        }
+      }
+      // Stability
+      const netStdev = {};
+      for (const n of netList) {
+        const recs = data.filter(r => r.network === n);
+        if (recs.length > 1) {
+          const avgs = recs.map(r => r.average_ping);
+          netStdev[n] = stddev(avgs);
+        }
+      }
+      const stableSorted = Object.entries(netStdev).sort((a, b) => a[1] - b[1]);
+      if (stableSorted.length) {
+        insights.push(
+          `📈 <strong>${stableSorted[0][0]}</strong> is most stable (σ = ${stableSorted[0][1].toFixed(1)} ms).`);
+        if (stableSorted.length > 1) {
+          insights.push(
+            `⚠️ <strong>${stableSorted[stableSorted.length-1][0]}</strong> has highest variation (σ = ${stableSorted[stableSorted.length-1][1].toFixed(1)} ms).`);
+        }
+      }
+      // Best server
+      const serverKeys = ['tokyo_ping', 'hongkong_ping', 'singapore_ping', 'mumbai_ping'];
+      const serverLabels = ['Tokyo', 'Hong Kong', 'Singapore', 'Mumbai'];
+      const serverAvgs = serverKeys.map(key => {
+        const vals = data.map(r => r[key]).filter(v => v !== undefined && v !== null && !isNaN(v));
+        return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : Infinity;
+      });
+      let bestSvrIdx = 0,
+        bestSvrVal = Infinity;
+      for (let i = 0; i < serverAvgs.length; i++) {
+        if (serverAvgs[i] < bestSvrVal) { bestSvrVal = serverAvgs[i];
+          bestSvrIdx = i; }
+      }
+      if (bestSvrVal !== Infinity) {
+        insights.push(
+          `🌏 <strong>${serverLabels[bestSvrIdx]}</strong> is fastest server (${bestSvrVal.toFixed(1)} ms avg).`);
+      }
+      // Win rate
+      const winRates = {};
+      for (const n of netList) winRates[n] = calculateWinRateForNetwork(n, data);
+      const winSorted = Object.entries(winRates).sort((a, b) => b[1] - a[1]);
+      if (winSorted.length && winSorted[0][1] > 0) {
+        insights.push(
+          `🏅 <strong>${winSorted[0][0]}</strong> has highest win rate (${winSorted[0][1].toFixed(1)}%).`);
+      }
+      // Outlier count
+      let outlierCount = 0;
+      for (const n of netList) {
+        const recs = data.filter(r => r.network === n);
+        for (const sk of serverKeys) {
+          const vals = recs.map(r => r[sk]).filter(v => v !== undefined && v !== null && !isNaN(v));
+          if (vals.length < 4) continue;
+          const sorted2 = [...vals].sort((a, b) => a - b);
+          const q1 = percentile(sorted2, 25);
+          const q3 = percentile(sorted2, 75);
+          const iqr = q3 - q1;
+          const lower = q1 - 1.5 * iqr;
+          const upper = q3 + 1.5 * iqr;
+          for (const r of recs) {
+            const val = r[sk];
+            if (val !== undefined && val !== null && !isNaN(val) && (val < lower || val > upper)) outlierCount++;
+          }
+        }
+      }
+      if (outlierCount > 0) {
+        insights.push(`⚠️ <strong>${outlierCount}</strong> outlier(s) detected. Check Anomalies tab.`);
+      } else {
+        insights.push(`✅ No outliers detected.`);
+      }
+      // Summary
+      const days = new Set(data.map(r => r.date)).size;
+      insights.push(
+        `📊 Analyzing <strong>${data.length}</strong> measurements across <strong>${days}</strong> days.`);
+
+      let html = '';
+      for (const txt of insights) {
+        const cls = txt.includes('⚠️') ? 'insight-warning' : txt.includes('✅') || txt.includes('🏆') || txt.includes(
+          '📈') ? 'insight-success' : '';
+        html += `<li class="${cls}">${txt}</li>`;
+      }
+      list.innerHTML = html;
+    }
+
+    // ── Update all ──
+    function updateAll() {
+      renderTable();
+      renderKPIs();
+      renderRecommendation();
+      renderCharts();
+      renderAnalytics();
+      document.getElementById('recordCountDisplay').textContent = measurements.length + ' measurements';
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    //  EVENT BINDING
+    // ═══════════════════════════════════════════════════════════════════════
+
+    document.addEventListener('DOMContentLoaded', function() {
+      initStorage();
+
+      setCurrentDateTime();
+      updateClock();
+      setInterval(updateClock, 1000);
+
+      document.getElementById('selectCsvBtn').addEventListener('click', async () => {
+        await selectCSVFile();
+      });
+      document.getElementById('createCsvBtn').addEventListener('click', async () => {
+        await createNewCSV();
+      });
+
+      document.getElementById('measurementForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        submitMeasurement();
+      });
+
+      document.getElementById('clearFormBtn').addEventListener('click', function() {
+        document.getElementById('formNetwork').value = '';
+        document.getElementById('formTokyo').value = '';
+        document.getElementById('formHongKong').value = '';
+        document.getElementById('formSingapore').value = '';
+        document.getElementById('formMumbai').value = '';
+        setCurrentDateTime();
+        document.getElementById('formValidation').className = 'validation-msg';
+      });
+
+      document.getElementById('exportCsvBtn').addEventListener('click', exportCSV);
+      document.getElementById('importCsvBtn').addEventListener('click', function() {
+        document.getElementById('csvFileInput').click();
+      });
+      document.getElementById('csvFileInput').addEventListener('change', function(e) {
+        if (this.files.length) {
+          importCSV(this.files[0]);
+          this.value = '';
+        }
+      });
+
+      document.getElementById('pdfReportBtn').addEventListener('click', function() {
+        toast('📄 PDF report generation not yet implemented.', 'info');
+      });
+
+      // Filters
+      document.querySelectorAll('#filterBar input, #filterBar select').forEach(el => {
+        el.addEventListener('change', updateAll);
+        el.addEventListener('input', function() { if (this.type === 'date') updateAll(); });
+      });
+      document.getElementById('clearFiltersBtn').addEventListener('click', function() {
+        document.getElementById('filterDateFrom').value = '';
+        document.getElementById('filterDateTo').value = '';
+        document.getElementById('filterNetwork').value = '';
+        document.getElementById('filterServer').value = '';
+        document.getElementById('filterTimePeriod').value = '';
+        document.getElementById('filterDayType').value = '';
+        updateAll();
+      });
+
+      // Tabs
+      document.querySelectorAll('#chartTabs .tab').forEach(tab => {
+        tab.addEventListener('click', function() {
+          document.querySelectorAll('#chartTabs .tab').forEach(t => t.classList.remove('active'));
+          this.classList.add('active');
+          const target = this.dataset.tab;
+          document.querySelectorAll('#chartTabs ~ .tab-content').forEach(c => c.classList.remove('active'));
+          document.getElementById(target)?.classList.add('active');
+        });
+      });
+      document.querySelectorAll('#analyticsTabs .tab').forEach(tab => {
+        tab.addEventListener('click', function() {
+          document.querySelectorAll('#analyticsTabs .tab').forEach(t => t.classList.remove('active'));
+          this.classList.add('active');
+          const target = this.dataset.tab;
+          document.querySelectorAll('#analyticsTabs ~ .tab-content').forEach(c => c.classList.remove('active'));
+          document.getElementById(target)?.classList.add('active');
+        });
+      });
+
+      // Initial render
+      updateAll();
+      console.log('📶 Dashboard with CSV persistence ready.');
+    });
+
+    window.handleDelete = handleDelete;
+  </script>
+</body>
+</html>
