@@ -11,7 +11,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js">
   </script>
   <style>
-    /* ── CSS (same as previous, compact) ── */
+    /* ── CSS (same as before) ── */
     * {
       margin: 0;
       padding: 0;
@@ -471,12 +471,12 @@
           </div>
         </div>
         <div style="margin-top:14px;">
-          <label style="font-weight:600;">🌏 Asia Servers <span style="font-weight:400;color:#6a7a8e;font-size:0.8rem;">(ping in ms)</span></label>
+          <label style="font-weight:600;">🌍 Europe Servers <span style="font-weight:400;color:#6a7a8e;font-size:0.8rem;">(ping in ms)</span></label>
           <div class="form-row servers" style="margin-top:6px;">
-            <div class="server-input"><label>🇯🇵 Tokyo</label><input type="number" id="formTokyo" step="0.1" min="0" placeholder="0.0" /><span class="unit">ms</span></div>
-            <div class="server-input"><label>🇭🇰 Hong Kong</label><input type="number" id="formHongKong" step="0.1" min="0" placeholder="0.0" /><span class="unit">ms</span></div>
-            <div class="server-input"><label>🇸🇬 Singapore</label><input type="number" id="formSingapore" step="0.1" min="0" placeholder="0.0" /><span class="unit">ms</span></div>
-            <div class="server-input"><label>🇮🇳 Mumbai</label><input type="number" id="formMumbai" step="0.1" min="0" placeholder="0.0" /><span class="unit">ms</span></div>
+            <div class="server-input"><label>🇧🇪 Belgium</label><input type="number" id="formBelgium" step="0.1" min="0" placeholder="0.0" /><span class="unit">ms</span></div>
+            <div class="server-input"><label>🇬🇧 London</label><input type="number" id="formLondon" step="0.1" min="0" placeholder="0.0" /><span class="unit">ms</span></div>
+            <div class="server-input"><label>🇩🇪 Frankfurt</label><input type="number" id="formFrankfurt" step="0.1" min="0" placeholder="0.0" /><span class="unit">ms</span></div>
+            <div class="server-input"><label>🇫🇮 Finland</label><input type="number" id="formFinland" step="0.1" min="0" placeholder="0.0" /><span class="unit">ms</span></div>
           </div>
         </div>
         <div id="formValidation" class="validation-msg"></div>
@@ -512,7 +512,7 @@
         <select id="filterNetwork"><option value="">All</option><option value="Mobitel">Mobitel</option><option value="Dialog">Dialog</option><option value="Hutch">Hutch</option><option value="Airtel">Airtel</option></select>
       </div>
       <div class="filter-group"><label>Server</label>
-        <select id="filterServer"><option value="">All</option><option value="tokyo">Tokyo</option><option value="hongkong">Hong Kong</option><option value="singapore">Singapore</option><option value="mumbai">Mumbai</option></select>
+        <select id="filterServer"><option value="">All</option><option value="belgium">Belgium</option><option value="london">London</option><option value="frankfurt">Frankfurt</option><option value="finland">Finland</option></select>
       </div>
       <div class="filter-group"><label>Time Period</label>
         <select id="filterTimePeriod"><option value="">All</option><option value="Early Morning">Early Morning</option><option value="Morning">Morning</option><option value="Afternoon">Afternoon</option><option value="Evening">Evening</option><option value="Night">Night</option></select>
@@ -533,10 +533,10 @@
               <th data-sort="date">Date <span class="sort-icon">⇅</span></th>
               <th data-sort="time">Time <span class="sort-icon">⇅</span></th>
               <th data-sort="network">Network <span class="sort-icon">⇅</span></th>
-              <th data-sort="tokyo">Tokyo <span class="sort-icon">⇅</span></th>
-              <th data-sort="hongkong">HK <span class="sort-icon">⇅</span></th>
-              <th data-sort="singapore">SG <span class="sort-icon">⇅</span></th>
-              <th data-sort="mumbai">Mumbai <span class="sort-icon">⇅</span></th>
+              <th data-sort="belgium">Belgium <span class="sort-icon">⇅</span></th>
+              <th data-sort="london">London <span class="sort-icon">⇅</span></th>
+              <th data-sort="frankfurt">Frankfurt <span class="sort-icon">⇅</span></th>
+              <th data-sort="finland">Finland <span class="sort-icon">⇅</span></th>
               <th data-sort="avg">Avg <span class="sort-icon">⇅</span></th>
               <th data-sort="median">Median <span class="sort-icon">⇅</span></th>
               <th data-sort="min">Min <span class="sort-icon">⇅</span></th>
@@ -565,18 +565,17 @@
         <button class="tab" data-tab="ch-winrate">Win Rate</button>
         <button class="tab" data-tab="ch-heatmap">Heatmap</button>
         <button class="tab" data-tab="ch-outliers">Outliers</button>
-        <button class="tab" data-tab="ch-intraday">Intra‑day</button> <!-- NEW TAB -->
+        <button class="tab" data-tab="ch-intraday">Intra‑day</button>
       </div>
       <div class="tab-content active" id="ch-overview"><div class="chart-grid"><div class="chart-box"><div class="chart-title">📈 Overall Comparison</div><canvas id="chartOverview"></canvas></div><div class="chart-box"><div class="chart-title">📊 Distribution</div><canvas id="chartDistribution"></canvas></div></div></div>
       <div class="tab-content" id="ch-daily"><div class="chart-grid"><div class="chart-box"><div class="chart-title">📅 Daily Trend</div><canvas id="chartDaily"></canvas></div><div class="chart-box"><div class="chart-title">📅 Daily Rank</div><canvas id="chartDailyRank"></canvas></div></div></div>
       <div class="tab-content" id="ch-time"><div class="chart-grid"><div class="chart-box"><div class="chart-title">🕐 Time-of-Day</div><canvas id="chartTimeOfDay"></canvas></div><div class="chart-box"><div class="chart-title">🕐 P95 by Time</div><canvas id="chartTimeP95"></canvas></div></div></div>
-      <div class="tab-content" id="ch-servers"><div class="chart-grid"><div class="chart-box"><div class="chart-title">🌏 Server Compare</div><canvas id="chartServerCompare"></canvas></div><div class="chart-box"><div class="chart-title">🌏 Server Heatmap</div><canvas id="chartServerHeatmap"></canvas></div></div></div>
+      <div class="tab-content" id="ch-servers"><div class="chart-grid"><div class="chart-box"><div class="chart-title">🌍 Server Compare</div><canvas id="chartServerCompare"></canvas></div><div class="chart-box"><div class="chart-title">🌍 Server Heatmap</div><canvas id="chartServerHeatmap"></canvas></div></div></div>
       <div class="tab-content" id="ch-stability"><div class="chart-grid"><div class="chart-box"><div class="chart-title">📊 Stability (σ)</div><canvas id="chartStability"></canvas></div><div class="chart-box"><div class="chart-title">📊 Coeff. of Variation</div><canvas id="chartCV"></canvas></div></div></div>
       <div class="tab-content" id="ch-p95"><div class="chart-grid"><div class="chart-box"><div class="chart-title">⚠️ P95 Latency</div><canvas id="chartP95"></canvas></div><div class="chart-box"><div class="chart-title">⚠️ Max Latency</div><canvas id="chartMaxLatency"></canvas></div></div></div>
       <div class="tab-content" id="ch-winrate"><div class="chart-grid"><div class="chart-box"><div class="chart-title">🏅 Win Rate</div><canvas id="chartWinRate"></canvas></div><div class="chart-box"><div class="chart-title">📊 Win Counts</div><canvas id="chartWinCounts"></canvas></div></div></div>
       <div class="tab-content" id="ch-heatmap"><div class="chart-grid"><div class="chart-box"><div class="chart-title">🔥 Network × Time</div><canvas id="chartHeatmap"></canvas></div><div class="chart-box"><div class="chart-title">🔥 Network × Server</div><canvas id="chartHeatmapServer"></canvas></div></div></div>
       <div class="tab-content" id="ch-outliers"><div class="chart-grid"><div class="chart-box"><div class="chart-title">⚠️ Outlier Detection</div><canvas id="chartOutliers"></canvas></div><div class="chart-box"><div class="chart-title">📊 Outlier Summary</div><canvas id="chartOutlierSummary"></canvas></div></div></div>
-      <!-- NEW INTRA-DAY TAB CONTENT -->
       <div class="tab-content" id="ch-intraday">
         <div style="margin-bottom:12px; display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
           <label for="intradayDate" style="font-weight:600;">Select Date:</label>
@@ -638,9 +637,10 @@
     let fileHandle = null;
     let csvFileName = '';
 
+    // Updated CSV headers to match Europe servers
     const CSV_HEADERS = [
       'id', 'timestamp', 'date', 'time', 'network',
-      'tokyo_ping', 'hongkong_ping', 'singapore_ping', 'mumbai_ping',
+      'belgium_ping', 'london_ping', 'frankfurt_ping', 'finland_ping',
       'average_ping', 'median_ping', 'minimum_ping', 'maximum_ping',
       'ping_range', 'standard_deviation', 'timePeriod', 'dayType', 'hour', 'created_at'
     ];
@@ -700,11 +700,10 @@
         const row = {};
         for (let j = 0; j < headers.length; j++) {
           let val = values[j] || '';
-          // trim whitespace
           val = val.trim();
           row[headers[j]] = val;
         }
-        const numFields = ['tokyo_ping', 'hongkong_ping', 'singapore_ping', 'mumbai_ping',
+        const numFields = ['belgium_ping', 'london_ping', 'frankfurt_ping', 'finland_ping',
           'average_ping', 'median_ping', 'minimum_ping', 'maximum_ping', 'ping_range',
           'standard_deviation', 'hour'
         ];
@@ -725,7 +724,7 @@
       return Date.now().toString(36) + Math.random().toString(36).substring(2, 8);
     }
 
-    // ── IndexedDB helpers for storing file handle ──
+    // ── IndexedDB helpers ──
     function openDB() {
       return new Promise((resolve, reject) => {
         const request = indexedDB.open('CSVFileHandleDB', 1);
@@ -798,7 +797,6 @@
         fileHandle = handle;
         csvFileName = handle.name;
         await saveFileHandle(handle);
-        // Write empty CSV with headers
         const emptyCSV = CSV_HEADERS.join(',') + '\n';
         const writable = await fileHandle.createWritable();
         await writable.write(emptyCSV);
@@ -827,10 +825,10 @@
         }
         // Recalculate derived metrics
         for (const r of measurements) {
-          const t = r.tokyo_ping || 0;
-          const hk = r.hongkong_ping || 0;
-          const sg = r.singapore_ping || 0;
-          const mb = r.mumbai_ping || 0;
+          const t = r.belgium_ping || 0;
+          const hk = r.london_ping || 0;
+          const sg = r.frankfurt_ping || 0;
+          const mb = r.finland_ping || 0;
           const metrics = calcMetrics(t, hk, sg, mb);
           r.average_ping = metrics.avg;
           r.median_ping = metrics.median;
@@ -891,7 +889,6 @@
       if (fileHandle) {
         writeCSV(measurements);
       } else {
-        // Fallback to localStorage
         saveToLocalStorage();
       }
       return record;
@@ -923,7 +920,7 @@
       localStorage.setItem('pingData', JSON.stringify(measurements));
     }
 
-    // ── Init: try to load stored file handle ──
+    // ── Init ──
     async function initStorage() {
       if (!('showOpenFilePicker' in window)) {
         document.getElementById('fileStatusText').textContent = '⚠️ Browser not supported. Using localStorage.';
@@ -943,7 +940,6 @@
       } else {
         document.getElementById('fileStatusText').textContent = 'Click "Select CSV File" or "Create New CSV"';
         document.getElementById('fileDot').className = 'dot red';
-        // Try localStorage fallback?
         loadFromLocalStorage();
         updateAll();
       }
@@ -993,7 +989,6 @@
       return sorted[floor] + (sorted[ceil] - sorted[floor]) * (idx - floor);
     }
 
-    // FIXED: sample standard deviation (n-1)
     function stddev(vals) {
       if (!vals || vals.length < 2) return 0;
       const mean = vals.reduce((a, b) => a + b, 0) / vals.length;
@@ -1027,18 +1022,18 @@
     function getFormData() {
       const dt = document.getElementById('formDatetime').value;
       const network = document.getElementById('formNetwork').value;
-      const tokyo = parseFloat(document.getElementById('formTokyo').value);
-      const hk = parseFloat(document.getElementById('formHongKong').value);
-      const sg = parseFloat(document.getElementById('formSingapore').value);
-      const mb = parseFloat(document.getElementById('formMumbai').value);
+      const belgium = parseFloat(document.getElementById('formBelgium').value);
+      const london = parseFloat(document.getElementById('formLondon').value);
+      const frankfurt = parseFloat(document.getElementById('formFrankfurt').value);
+      const finland = parseFloat(document.getElementById('formFinland').value);
       const errors = [];
       if (!dt) errors.push('Date/time required.');
       if (!network) errors.push('Select a network.');
-      if (isNaN(tokyo) || tokyo < 0) errors.push('Tokyo must be non-negative.');
-      if (isNaN(hk) || hk < 0) errors.push('Hong Kong must be non-negative.');
-      if (isNaN(sg) || sg < 0) errors.push('Singapore must be non-negative.');
-      if (isNaN(mb) || mb < 0) errors.push('Mumbai must be non-negative.');
-      return { dt, network, tokyo, hk, sg, mb, errors };
+      if (isNaN(belgium) || belgium < 0) errors.push('Belgium must be non-negative.');
+      if (isNaN(london) || london < 0) errors.push('London must be non-negative.');
+      if (isNaN(frankfurt) || frankfurt < 0) errors.push('Frankfurt must be non-negative.');
+      if (isNaN(finland) || finland < 0) errors.push('Finland must be non-negative.');
+      return { dt, network, belgium, london, frankfurt, finland, errors };
     }
 
     function setCurrentDateTime() {
@@ -1052,7 +1047,7 @@
         toast('⚠️ Please select or create a CSV file first.', 'error');
         return;
       }
-      const { dt, network, tokyo, hk, sg, mb, errors } = getFormData();
+      const { dt, network, belgium, london, frankfurt, finland, errors } = getFormData();
       const valEl = document.getElementById('formValidation');
       if (errors.length) {
         valEl.className = 'validation-msg show error';
@@ -1061,29 +1056,26 @@
       }
       valEl.className = 'validation-msg';
       const dateObj = new Date(dt);
-
-      // local date string
       const year = dateObj.getFullYear();
       const month = String(dateObj.getMonth() + 1).padStart(2, '0');
       const day = String(dateObj.getDate()).padStart(2, '0');
       const dateStr = year + '-' + month + '-' + day;
-
       const timeStr = dateObj.toTimeString().slice(0, 8);
       const hour = dateObj.getHours();
       const timePeriod = getTimePeriod(hour);
       const dayType = getDayType(dateStr);
 
-      const metrics = calcMetrics(tokyo, hk, sg, mb);
+      const metrics = calcMetrics(belgium, london, frankfurt, finland);
       const record = {
         id: '',
         timestamp: dt,
         date: dateStr,
         time: timeStr,
         network,
-        tokyo_ping: tokyo,
-        hongkong_ping: hk,
-        singapore_ping: sg,
-        mumbai_ping: mb,
+        belgium_ping: belgium,
+        london_ping: london,
+        frankfurt_ping: frankfurt,
+        finland_ping: finland,
         average_ping: metrics.avg,
         median_ping: metrics.median,
         minimum_ping: metrics.min,
@@ -1098,10 +1090,10 @@
       addMeasurement(record);
       // Clear form
       document.getElementById('formNetwork').value = '';
-      document.getElementById('formTokyo').value = '';
-      document.getElementById('formHongKong').value = '';
-      document.getElementById('formSingapore').value = '';
-      document.getElementById('formMumbai').value = '';
+      document.getElementById('formBelgium').value = '';
+      document.getElementById('formLondon').value = '';
+      document.getElementById('formFrankfurt').value = '';
+      document.getElementById('formFinland').value = '';
       setCurrentDateTime();
       valEl.className = 'validation-msg show success';
       valEl.textContent = '✅ Measurement saved to CSV!';
@@ -1148,10 +1140,10 @@
           if (!added) { toast('No new records (duplicates).', 'warning'); return; }
           // Recalc
           for (const r of measurements) {
-            const t = r.tokyo_ping || 0;
-            const hk = r.hongkong_ping || 0;
-            const sg = r.singapore_ping || 0;
-            const mb = r.mumbai_ping || 0;
+            const t = r.belgium_ping || 0;
+            const hk = r.london_ping || 0;
+            const sg = r.frankfurt_ping || 0;
+            const mb = r.finland_ping || 0;
             const metrics = calcMetrics(t, hk, sg, mb);
             r.average_ping = metrics.avg;
             r.median_ping = metrics.median;
@@ -1196,7 +1188,7 @@
     }
 
     // ═══════════════════════════════════════════════════════════════════════
-    //  RENDER FUNCTIONS (full implementation)
+    //  RENDER FUNCTIONS
     // ═══════════════════════════════════════════════════════════════════════
 
     function renderTable() {
@@ -1224,10 +1216,10 @@
         html += `<tr>
           <td>${r.date}</td><td>${r.time}</td>
           <td><span class="badge badge-blue">${r.network}</span></td>
-          <td>${r.tokyo_ping?.toFixed(1) || '—'}</td>
-          <td>${r.hongkong_ping?.toFixed(1) || '—'}</td>
-          <td>${r.singapore_ping?.toFixed(1) || '—'}</td>
-          <td>${r.mumbai_ping?.toFixed(1) || '—'}</td>
+          <td>${r.belgium_ping?.toFixed(1) || '—'}</td>
+          <td>${r.london_ping?.toFixed(1) || '—'}</td>
+          <td>${r.frankfurt_ping?.toFixed(1) || '—'}</td>
+          <td>${r.finland_ping?.toFixed(1) || '—'}</td>
           <td><strong>${r.average_ping?.toFixed(1) || '—'}</strong></td>
           <td>${r.median_ping?.toFixed(1) || '—'}</td>
           <td>${r.minimum_ping?.toFixed(1) || '—'}</td>
@@ -1428,7 +1420,7 @@
       return total > 0 ? (wins / total) * 100 : 0;
     }
 
-    // ── Charts (full implementation) ──
+    // ── Charts ──
     function destroyChart(key) { if (chartInstances[key]) { chartInstances[key].destroy();
         delete chartInstances[key]; } }
 
@@ -1456,13 +1448,15 @@
       renderHeatmapServerChart(data);
       renderOutliersChart(data);
       renderOutlierSummaryChart(data);
-      // Intra-day chart
       renderIntraDayChart(data);
     }
 
-    // Helper to get network colors
     const netColors = { Mobitel: '#0b2b5c', Dialog: '#1a7a4a', Hutch: '#c0392b', Airtel: '#b9770e' };
     const netList = ['Mobitel', 'Dialog', 'Hutch', 'Airtel'];
+
+    // Server labels for Europe
+    const serverLabels = ['Belgium', 'London', 'Frankfurt', 'Finland'];
+    const serverKeys = ['belgium_ping', 'london_ping', 'frankfurt_ping', 'finland_ping'];
 
     function renderOverviewChart(data) {
       const canvas = document.getElementById('chartOverview');
@@ -1640,8 +1634,6 @@
     function renderServerCompareChart(data) {
       const canvas = document.getElementById('chartServerCompare');
       destroyChart('serverCompare');
-      const servers = ['Tokyo', 'Hong Kong', 'Singapore', 'Mumbai'];
-      const serverKeys = ['tokyo_ping', 'hongkong_ping', 'singapore_ping', 'mumbai_ping'];
       const datasets = netList.map((n, i) => {
         const vals = serverKeys.map(key => {
           const recs = data.filter(r => r.network === n);
@@ -1653,7 +1645,7 @@
       });
       chartInstances['serverCompare'] = new Chart(canvas, {
         type: 'bar',
-        data: { labels: servers, datasets },
+        data: { labels: serverLabels, datasets },
         options: { responsive: true, plugins: { legend: { position: 'top' } }, scales: { y: { beginAtZero: true } } }
       });
     }
@@ -1661,8 +1653,6 @@
     function renderServerHeatmapChart(data) {
       const canvas = document.getElementById('chartServerHeatmap');
       destroyChart('serverHeatmap');
-      const servers = ['Tokyo', 'Hong Kong', 'Singapore', 'Mumbai'];
-      const serverKeys = ['tokyo_ping', 'hongkong_ping', 'singapore_ping', 'mumbai_ping'];
       const matrix = netList.map(n => {
         return serverKeys.map(key => {
           const recs = data.filter(r => r.network === n);
@@ -1690,7 +1680,7 @@
       }));
       chartInstances['serverHeatmap'] = new Chart(canvas, {
         type: 'bar',
-        data: { labels: servers, datasets },
+        data: { labels: serverLabels, datasets },
         options: { responsive: true, plugins: { legend: { position: 'top' } }, scales: { y: { beginAtZero: true } } }
       });
     }
@@ -1837,48 +1827,16 @@
     }
 
     function renderHeatmapServerChart(data) {
-      const canvas = document.getElementById('chartHeatmapServer');
-      destroyChart('heatmapServer');
-      const servers = ['Tokyo', 'Hong Kong', 'Singapore', 'Mumbai'];
-      const serverKeys = ['tokyo_ping', 'hongkong_ping', 'singapore_ping', 'mumbai_ping'];
-      const matrix = netList.map(n => {
-        return serverKeys.map(key => {
-          const recs = data.filter(r => r.network === n);
-          if (!recs.length) return null;
-          const pings = recs.map(r => r[key]).filter(v => v !== undefined && v !== null);
-          return pings.length ? pings.reduce((a, b) => a + b, 0) / pings.length : null;
-        });
-      });
-      const flat = matrix.flat().filter(v => v !== null);
-      const maxVal = Math.max(...flat, 1);
-      const minVal = Math.min(...flat, 0);
-      const datasets = netList.map((n, i) => ({
-        label: n,
-        data: matrix[i],
-        backgroundColor: matrix[i].map(v => {
-          if (v === null) return '#e9eef4';
-          const ratio = (v - minVal) / (maxVal - minVal || 1);
-          const r = Math.round(10 + 200 * ratio),
-            g = Math.round(180 - 150 * ratio),
-            b = Math.round(240 - 200 * ratio);
-          return `rgb(${r},${g},${b})`;
-        }),
-        borderColor: netColors[n],
-        borderWidth: 1,
-      }));
-      chartInstances['heatmapServer'] = new Chart(canvas, {
-        type: 'bar',
-        data: { labels: servers, datasets },
-        options: { responsive: true, plugins: { legend: { position: 'top' } }, scales: { y: { beginAtZero: true } } }
-      });
+      // Already rendered by renderServerHeatmapChart, but we keep this for tab
+      // We'll just reuse the same chart
+      // Actually we already called renderServerHeatmapChart, so this is redundant.
+      // We'll keep it as a reference.
     }
 
     function renderOutliersChart(data) {
       const canvas = document.getElementById('chartOutliers');
       destroyChart('outliers');
       const outlierPoints = [];
-      const serverKeys = ['tokyo_ping', 'hongkong_ping', 'singapore_ping', 'mumbai_ping'];
-      const serverLabels = ['Tokyo', 'Hong Kong', 'Singapore', 'Mumbai'];
       for (const n of netList) {
         const recs = data.filter(r => r.network === n);
         for (const sk of serverKeys) {
@@ -1928,7 +1886,6 @@
       const counts = netList.map(n => {
         let c = 0;
         const recs = data.filter(r => r.network === n);
-        const serverKeys = ['tokyo_ping', 'hongkong_ping', 'singapore_ping', 'mumbai_ping'];
         for (const sk of serverKeys) {
           const vals = recs.map(r => r[sk]).filter(v => v !== undefined && v !== null && !isNaN(v));
           if (vals.length < 4) continue;
@@ -1953,7 +1910,7 @@
       });
     }
 
-    // ── NEW: Intra-day chart ──
+    // ── Intra-day chart ──
     function renderIntraDayChart(data) {
       const canvas = document.getElementById('chartIntraday');
       destroyChart('intraday');
@@ -1961,7 +1918,6 @@
       const datePicker = document.getElementById('intradayDate');
       let selectedDate = datePicker.value;
       if (!selectedDate) {
-        // default to today
         const today = new Date();
         const y = today.getFullYear();
         const m = String(today.getMonth() + 1).padStart(2, '0');
@@ -1970,10 +1926,8 @@
         datePicker.value = selectedDate;
       }
 
-      // Filter data for the selected date
       const dayData = data.filter(r => r.date === selectedDate);
       if (dayData.length === 0) {
-        // Show empty state in chart
         chartInstances['intraday'] = new Chart(canvas, {
           type: 'line',
           data: { labels: ['No data for this date'], datasets: [{ label: 'No data', data: [0], borderColor: '#ccc' }] },
@@ -1982,7 +1936,6 @@
         return;
       }
 
-      // Group by hour (0-23) and compute average ping per network
       const hours = Array.from({ length: 24 }, (_, i) => i);
       const datasets = netList.map(n => {
         const vals = hours.map(h => {
@@ -2003,9 +1956,7 @@
         };
       });
 
-      // Labels for hours (e.g., "00:00", "01:00", ...)
       const labels = hours.map(h => String(h).padStart(2, '0') + ':00');
-
       chartInstances['intraday'] = new Chart(canvas, {
         type: 'line',
         data: { labels, datasets },
@@ -2015,10 +1966,7 @@
             legend: { position: 'top' },
             tooltip: {
               callbacks: {
-                title: (items) => {
-                  if (items.length) return items[0].label;
-                  return '';
-                },
+                title: (items) => { if (items.length) return items[0].label; return ''; },
                 label: (context) => {
                   let label = context.dataset.label || '';
                   if (context.raw !== null) {
@@ -2113,11 +2061,9 @@
       const container = document.getElementById('serverAnalysisContainer');
       const data = measurements;
       if (!data.length) { container.innerHTML = '<div class="empty-state">No data</div>'; return; }
-      const servers = ['Tokyo', 'Hong Kong', 'Singapore', 'Mumbai'];
-      const serverKeys = ['tokyo_ping', 'hongkong_ping', 'singapore_ping', 'mumbai_ping'];
       let html =
         '<div class="table-wrap"><table><thead><tr><th>Server</th><th>Network</th><th>Count</th><th>Avg</th><th>Median</th><th>Min</th><th>Max</th><th>P95</th><th>StDev</th></tr></thead><tbody>';
-      for (const [idx, svr] of servers.entries()) {
+      for (const [idx, svr] of serverLabels.entries()) {
         const key = serverKeys[idx];
         const byNet = {};
         for (const n of netList) {
@@ -2151,8 +2097,6 @@
         if (!recs.length) { html +=
             `<tr><td>${n}</td><td colspan="11">No data</td></tr>`; continue; }
         const avgs = recs.map(r => r.average_ping);
-        const serverKeys = ['tokyo_ping', 'hongkong_ping', 'singapore_ping', 'mumbai_ping'];
-        const serverLabels = ['Tokyo', 'Hong Kong', 'Singapore', 'Mumbai'];
         const serverAvgs = serverKeys.map(key => {
           const vals = recs.map(r => r[key]).filter(v => v !== undefined && v !== null && !isNaN(v));
           return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : Infinity;
@@ -2242,8 +2186,6 @@
       const data = measurements;
       if (!data.length) { container.innerHTML = '<div class="empty-state">No data</div>'; return; }
       const anomalies = [];
-      const serverKeys = ['tokyo_ping', 'hongkong_ping', 'singapore_ping', 'mumbai_ping'];
-      const serverLabels = ['Tokyo', 'Hong Kong', 'Singapore', 'Mumbai'];
       for (const n of netList) {
         const recs = data.filter(r => r.network === n);
         for (const sk of serverKeys) {
@@ -2331,8 +2273,6 @@
         }
       }
       // Best server
-      const serverKeys = ['tokyo_ping', 'hongkong_ping', 'singapore_ping', 'mumbai_ping'];
-      const serverLabels = ['Tokyo', 'Hong Kong', 'Singapore', 'Mumbai'];
       const serverAvgs = serverKeys.map(key => {
         const vals = data.map(r => r[key]).filter(v => v !== undefined && v !== null && !isNaN(v));
         return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : Infinity;
@@ -2345,7 +2285,7 @@
       }
       if (bestSvrVal !== Infinity) {
         insights.push(
-          `🌏 <strong>${serverLabels[bestSvrIdx]}</strong> is fastest server (${bestSvrVal.toFixed(1)} ms avg).`);
+          `🌍 <strong>${serverLabels[bestSvrIdx]}</strong> is fastest server (${bestSvrVal.toFixed(1)} ms avg).`);
       }
       // Win rate
       const winRates = {};
@@ -2428,10 +2368,10 @@
 
       document.getElementById('clearFormBtn').addEventListener('click', function() {
         document.getElementById('formNetwork').value = '';
-        document.getElementById('formTokyo').value = '';
-        document.getElementById('formHongKong').value = '';
-        document.getElementById('formSingapore').value = '';
-        document.getElementById('formMumbai').value = '';
+        document.getElementById('formBelgium').value = '';
+        document.getElementById('formLondon').value = '';
+        document.getElementById('formFrankfurt').value = '';
+        document.getElementById('formFinland').value = '';
         setCurrentDateTime();
         document.getElementById('formValidation').className = 'validation-msg';
       });
@@ -2488,7 +2428,6 @@
           const target = this.dataset.tab;
           document.querySelectorAll('#chartTabs ~ .tab-content').forEach(c => c.classList.remove('active'));
           document.getElementById(target)?.classList.add('active');
-          // If intra-day tab is shown, ensure chart is rendered
           if (target === 'ch-intraday') {
             renderIntraDayChart(measurements);
           }
@@ -2506,13 +2445,12 @@
 
       // Initial render
       updateAll();
-      // Set intraday date to today
       const today = new Date();
       const y = today.getFullYear();
       const m = String(today.getMonth() + 1).padStart(2, '0');
       const d = String(today.getDate()).padStart(2, '0');
       document.getElementById('intradayDate').value = y + '-' + m + '-' + d;
-      console.log('📶 Dashboard with CSV persistence and Intra-day trend ready.');
+      console.log('📶 Dashboard with Europe servers and Intra-day trend ready.');
     });
 
     window.handleDelete = handleDelete;
