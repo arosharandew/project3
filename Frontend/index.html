@@ -567,7 +567,7 @@
       <div class="tab-content" id="ch-servers"><div class="chart-grid"><div class="chart-box"><div class="chart-title">🌍 Server Compare</div><canvas id="chartServerCompare"></canvas></div><div class="chart-box"><div class="chart-title">🌍 Server Heatmap</div><canvas id="chartServerHeatmap"></canvas></div></div></div>
       <div class="tab-content" id="ch-stability"><div class="chart-grid"><div class="chart-box"><div class="chart-title">📊 Stability (σ)</div><canvas id="chartStability"></canvas></div><div class="chart-box"><div class="chart-title">📊 Coeff. of Variation</div><canvas id="chartCV"></canvas></div></div></div>
       <div class="tab-content" id="ch-p95"><div class="chart-grid"><div class="chart-box"><div class="chart-title">⚠️ P95 Latency</div><canvas id="chartP95"></canvas></div><div class="chart-box"><div class="chart-title">⚠️ Max Latency</div><canvas id="chartMaxLatency"></canvas></div></div></div>
-      <div class="tab-content" id="ch-winrate"><div class="chart-grid"><div class="chart-box"><div class="chart-title">🏅 Win Rate</div><canvas id="chartWinRate"></canvas></div><div class="chart-box"><div class="chart-title">📊 Win Counts</div><canvas id="chartWinCounts"></canvas></div></div></div>
+      <div class="tab-content" id="ch-winrate"><div class="chart-grid"><div class="chart-box"><div class="chart-title">🏅 Win Rate (Hourly)</div><canvas id="chartWinRate"></canvas></div><div class="chart-box"><div class="chart-title">📊 Hour Wins</div><canvas id="chartWinCounts"></canvas></div></div></div>
       <div class="tab-content" id="ch-heatmap"><div class="chart-grid"><div class="chart-box"><div class="chart-title">🔥 Network × Time</div><canvas id="chartHeatmap"></canvas></div><div class="chart-box"><div class="chart-title">🔥 Network × Server</div><canvas id="chartHeatmapServer"></canvas></div></div></div>
       <div class="tab-content" id="ch-outliers"><div class="chart-grid"><div class="chart-box"><div class="chart-title">⚠️ Outlier Detection</div><canvas id="chartOutliers"></canvas></div><div class="chart-box"><div class="chart-title">📊 Outlier Summary</div><canvas id="chartOutlierSummary"></canvas></div></div></div>
       <div class="tab-content" id="ch-intraday">
@@ -1199,6 +1199,68 @@
     const serverLabels = ['Belgium', 'London', 'Frankfurt', 'Finland'];
     const serverKeys = ['belgium_ping', 'london_ping', 'frankfurt_ping', 'finland_ping'];
 
+    // ── NEW: Hourly win rate calculation ──
+    function calculateHourlyWinRates(data) {
+      // For each hour (0-23), compute average ping per network
+      const hourlyData = {};
+      for (let h = 0; h < 24; h++) {
+        hourlyData[h] = {};
+        for (const n of netList) {
+          hourlyData[h][n] = { sum: 0, count: 0 };
+        }
+      }
+      // Aggregate data
+      for (const r of data) {
+        const h = r.hour;
+        if (h === undefined || h === null) continue;
+        const net = r.network;
+        if (!netList.includes(net)) continue;
+        const avg = r.average_ping;
+        if (avg === undefined || avg === null || isNaN(avg)) continue;
+        hourlyData[h][net].sum += avg;
+        hourlyData[h][net].count += 1;
+      }
+      // Compute hourly averages and determine winner per hour
+      const hourlyWins = {};
+      for (const n of netList) hourlyWins[n] = 0;
+      let hoursWithData = 0;
+      for (let h = 0; h < 24; h++) {
+        const avgs = {};
+        let hasData = false;
+        for (const n of netList) {
+          const d = hourlyData[h][n];
+          if (d.count > 0) {
+            avgs[n] = d.sum / d.count;
+            hasData = true;
+          }
+        }
+        if (!hasData) continue;
+        hoursWithData++;
+        // Find network with lowest average for this hour
+        let best = null;
+        let bestAvg = Infinity;
+        for (const [n, avg] of Object.entries(avgs)) {
+          if (avg < bestAvg) {
+            bestAvg = avg;
+            best = n;
+          }
+        }
+        if (best) hourlyWins[best] = (hourlyWins[best] || 0) + 1;
+      }
+      // Win rate = percentage of hours with data that each network wins
+      const winRates = {};
+      for (const n of netList) {
+        winRates[n] = hoursWithData > 0 ? (hourlyWins[n] / hoursWithData) * 100 : 0;
+      }
+      return { winRates, hourlyWins, hoursWithData };
+    }
+
+    // ── Replacement for daily win rate ──
+    function calculateWinRateForNetwork(network, data) {
+      const { winRates } = calculateHourlyWinRates(data);
+      return winRates[network] || 0;
+    }
+
     function renderTable() {
       const data = getFilteredData();
       const tbody = document.getElementById('tableBody');
@@ -1328,27 +1390,12 @@
       document.getElementById('kpiLowestMed').textContent = bestMed !== Infinity ? bestMed.toFixed(1) + ' ms' : '—';
       document.getElementById('kpiBestStab').textContent = bestStab !== Infinity ? bestStab.toFixed(1) + ' σ' : '—';
       document.getElementById('kpiBestP95').textContent = bestP95 !== Infinity ? bestP95.toFixed(1) + ' ms' : '—';
-      // Win rate
-      const wins = { Mobitel: 0, Dialog: 0, Hutch: 0, Airtel: 0 };
-      const dates = [...new Set(data.map(r => r.date))];
-      for (const d of dates) {
-        const dayRecs = data.filter(r => r.date === d);
-        const byNet = {};
-        for (const n of nets) {
-          const nr = dayRecs.filter(r => r.network === n);
-          if (nr.length) byNet[n] = nr.reduce((s, r) => s + r.average_ping, 0) / nr.length;
-        }
-        const entries = Object.entries(byNet);
-        if (entries.length < 2) continue;
-        const best = entries.reduce((a, b) => a[1] < b[1] ? a : b);
-        wins[best[0]] = (wins[best[0]] || 0) + 1;
-      }
-      const totalWins = Object.values(wins).reduce((a, b) => a + b, 0);
+      // Win rate – use hourly method
+      const { winRates, hourlyWins, hoursWithData } = calculateHourlyWinRates(data);
       let bestWinRate = 0,
         bestWinNet = '—';
-      for (const [n, w] of Object.entries(wins)) {
-        const rate = totalWins > 0 ? (w / totalWins) * 100 : 0;
-        if (rate > bestWinRate) { bestWinRate = rate;
+      for (const n of nets) {
+        if (winRates[n] > bestWinRate) { bestWinRate = winRates[n];
           bestWinNet = n; }
       }
       document.getElementById('kpiWinRate').textContent = bestWinNet !== '—' ? bestWinNet + ' (' + bestWinRate.toFixed(1) +
@@ -1422,28 +1469,7 @@
       recCount.textContent = bestRecs.length;
     }
 
-    function calculateWinRateForNetwork(network, data) {
-      const nets = ['Mobitel', 'Dialog', 'Hutch', 'Airtel'];
-      const dates = [...new Set(data.map(r => r.date))];
-      let wins = 0,
-        total = 0;
-      for (const d of dates) {
-        const dayRecs = data.filter(r => r.date === d);
-        const byNet = {};
-        for (const n of nets) {
-          const nr = dayRecs.filter(r => r.network === n);
-          if (nr.length) byNet[n] = nr.reduce((s, r) => s + r.average_ping, 0) / nr.length;
-        }
-        const entries = Object.entries(byNet);
-        if (entries.length < 2) continue;
-        const best = entries.reduce((a, b) => a[1] < b[1] ? a : b);
-        if (best[0] === network) wins++;
-        total++;
-      }
-      return total > 0 ? (wins / total) * 100 : 0;
-    }
-
-    // ── Charts (full) ──
+    // ── Charts ──
     function destroyChart(key) { if (chartInstances[key]) { chartInstances[key].destroy();
         delete chartInstances[key]; } }
 
@@ -1769,41 +1795,30 @@
       });
     }
 
+    // ── Updated Win Rate chart (hourly) ──
     function renderWinRateChart(data) {
       const canvas = document.getElementById('chartWinRate');
       destroyChart('winRate');
-      const rates = netList.map(n => calculateWinRateForNetwork(n, data));
+      const { winRates } = calculateHourlyWinRates(data);
+      const rates = netList.map(n => winRates[n] || 0);
       chartInstances['winRate'] = new Chart(canvas, {
         type: 'bar',
-        data: { labels: netList, datasets: [{ label: 'Win Rate (%)', data: rates, backgroundColor: netList.map(n =>
-            netColors[n] + '99'), borderColor: netList.map(n => netColors[n]), borderWidth: 2 }] },
+        data: { labels: netList, datasets: [{ label: 'Win Rate (% of hours)', data: rates, backgroundColor: netList
+            .map(n => netColors[n] + '99'), borderColor: netList.map(n => netColors[n]), borderWidth: 2 }] },
         options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true,
               max: 100 } } }
       });
     }
 
+    // ── Updated Win Counts chart (hourly wins) ──
     function renderWinCountsChart(data) {
       const canvas = document.getElementById('chartWinCounts');
       destroyChart('winCounts');
-      const wins = {};
-      for (const n of netList) wins[n] = 0;
-      const dates = [...new Set(data.map(r => r.date))];
-      for (const d of dates) {
-        const dayRecs = data.filter(r => r.date === d);
-        const byNet = {};
-        for (const n of netList) {
-          const nr = dayRecs.filter(r => r.network === n);
-          if (nr.length) byNet[n] = nr.reduce((s, r) => s + r.average_ping, 0) / nr.length;
-        }
-        const entries = Object.entries(byNet);
-        if (entries.length < 2) continue;
-        const best = entries.reduce((a, b) => a[1] < b[1] ? a : b);
-        wins[best[0]] = (wins[best[0]] || 0) + 1;
-      }
-      const counts = netList.map(n => wins[n] || 0);
+      const { hourlyWins } = calculateHourlyWinRates(data);
+      const counts = netList.map(n => hourlyWins[n] || 0);
       chartInstances['winCounts'] = new Chart(canvas, {
         type: 'bar',
-        data: { labels: netList, datasets: [{ label: 'Daily Wins', data: counts, backgroundColor: netList.map(n =>
+        data: { labels: netList, datasets: [{ label: 'Hours Won', data: counts, backgroundColor: netList.map(n =>
             netColors[n] + '99'), borderColor: netList.map(n => netColors[n]), borderWidth: 2 }] },
         options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
       });
@@ -1844,7 +1859,7 @@
     }
 
     function renderHeatmapServerChart(data) {
-      // already done via renderServerHeatmapChart, but we keep for tab
+      // already done via renderServerHeatmapChart
     }
 
     function renderOutliersChart(data) {
@@ -2124,8 +2139,10 @@
       const container = document.getElementById('networkComparisonContainer');
       const data = measurements;
       if (!data.length) { container.innerHTML = '<div class="empty-state">No data</div>'; return; }
+      // Also include hourly win rate in the table
+      const { winRates, hoursWithData } = calculateHourlyWinRates(data);
       let html =
-        '<div class="table-wrap"><table><thead><tr><th>Network</th><th>Count</th><th>Avg</th><th>Median</th><th>Min</th><th>Max</th><th>P95</th><th>StDev</th><th>CV</th><th>Win Rate</th><th>Best Server</th><th>Worst Server</th></tr></thead><tbody>';
+        '<div class="table-wrap"><table><thead><tr><th>Network</th><th>Count</th><th>Avg</th><th>Median</th><th>Min</th><th>Max</th><th>P95</th><th>StDev</th><th>CV</th><th>Win Rate (hourly)</th><th>Best Server</th><th>Worst Server</th></tr></thead><tbody>';
       for (const n of netList) {
         const recs = data.filter(r => r.network === n);
         if (!recs.length) { html +=
@@ -2151,7 +2168,7 @@
           <td>${percentile(avgs,50).toFixed(1)}</td><td>${Math.min(...avgs).toFixed(1)}</td>
           <td>${Math.max(...avgs).toFixed(1)}</td><td>${percentile(avgs,95).toFixed(1)}</td>
           <td>${stddev(avgs).toFixed(1)}</td><td>${coefficientOfVariation(avgs).toFixed(2)}</td>
-          <td>${calculateWinRateForNetwork(n,data).toFixed(1)}%</td>
+          <td>${(winRates[n] || 0).toFixed(1)}% (${hoursWithData} hrs)</td>
           <td>${bestSvr}</td><td>${worstSvr}</td></tr>`;
       }
       html += '</tbody></table></div>';
@@ -2325,13 +2342,17 @@
         insights.push(
           `🌍 <strong>${serverLabels[bestSvrIdx]}</strong> is fastest server (${bestSvrVal.toFixed(1)} ms avg).`);
       }
-      // Win rate
-      const winRates = {};
-      for (const n of netList) winRates[n] = calculateWinRateForNetwork(n, data);
-      const winSorted = Object.entries(winRates).sort((a, b) => b[1] - a[1]);
-      if (winSorted.length && winSorted[0][1] > 0) {
+      // Win rate (hourly)
+      const { winRates, hoursWithData } = calculateHourlyWinRates(data);
+      let bestWin = '—',
+        bestWinRate = 0;
+      for (const n of netList) {
+        if (winRates[n] > bestWinRate) { bestWinRate = winRates[n];
+          bestWin = n; }
+      }
+      if (bestWin !== '—' && hoursWithData > 0) {
         insights.push(
-          `🏅 <strong>${winSorted[0][0]}</strong> has highest win rate (${winSorted[0][1].toFixed(1)}%).`);
+          `🏅 <strong>${bestWin}</strong> has highest hourly win rate (${bestWinRate.toFixed(1)}% of ${hoursWithData} hours with data).`);
       }
       // Outlier count
       let outlierCount = 0;
@@ -2488,7 +2509,7 @@
       const m = String(today.getMonth() + 1).padStart(2, '0');
       const d = String(today.getDate()).padStart(2, '0');
       document.getElementById('intradayDate').value = y + '-' + m + '-' + d;
-      console.log('📶 Dashboard with new colors and latest-first sorting.');
+      console.log('📶 Dashboard with hourly win rate calculation.');
     });
 
     window.handleDelete = handleDelete;
