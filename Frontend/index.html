@@ -173,19 +173,14 @@
       border-radius: 20px;
       font-size: 0.75rem;
       font-weight: 600;
+      color: #fff;
     }
-    .badge-blue {
-      background: #dbe5f0;
-      color: #0b2b5c;
-    }
-    .badge-green {
-      background: #d4edda;
-      color: #155724;
-    }
-    .badge-red {
-      background: #f8d7da;
-      color: #721c24;
-    }
+    .badge-mobitel { background: #2e7d32; }
+    .badge-dialog { background: #e57373; color: #333; }
+    .badge-hutch { background: #f57c00; }
+    .badge-airtel { background: #b71c1c; }
+    .badge-green { background: #d4edda; color: #155724; }
+    .badge-red { background: #f8d7da; color: #721c24; }
     .kpi {
       background: #fff;
       border-radius: 14px;
@@ -530,8 +525,7 @@
         <table id="dataTable">
           <thead id="tableHead">
             <tr>
-              <th data-sort="date">Date <span class="sort-icon">⇅</span></th>
-              <th data-sort="time">Time <span class="sort-icon">⇅</span></th>
+              <th data-sort="timestamp" style="cursor:default;">Date &amp; Time <span class="sort-icon">↓</span></th>
               <th data-sort="network">Network <span class="sort-icon">⇅</span></th>
               <th data-sort="belgium">Belgium <span class="sort-icon">⇅</span></th>
               <th data-sort="london">London <span class="sort-icon">⇅</span></th>
@@ -547,7 +541,7 @@
               <th>Actions</th>
             </tr>
           </thead>
-          <tbody id="tableBody"><tr><td colspan="15" class="empty-state">No measurements</td></tr></tbody>
+          <tbody id="tableBody"><tr><td colspan="14" class="empty-state">No measurements</td></tr></tbody>
         </table>
       </div>
     </div>
@@ -631,13 +625,14 @@
     // ═══════════════════════════════════════════════════════════════════════
 
     let measurements = [];
-    let sortField = 'date';
-    let sortAsc = false;
+    // Default sort: newest first (by timestamp descending)
+    let sortField = 'timestamp';
+    let sortAsc = false;  // false means descending
     let chartInstances = {};
     let fileHandle = null;
     let csvFileName = '';
 
-    // Updated CSV headers to match Europe servers
+    // Updated CSV headers – no separate date/time columns needed, timestamp is enough
     const CSV_HEADERS = [
       'id', 'timestamp', 'date', 'time', 'network',
       'belgium_ping', 'london_ping', 'frankfurt_ping', 'finland_ping',
@@ -1068,7 +1063,7 @@
       const metrics = calcMetrics(belgium, london, frankfurt, finland);
       const record = {
         id: '',
-        timestamp: dt,
+        timestamp: dt,  // ISO string with timezone offset
         date: dateStr,
         time: timeStr,
         network,
@@ -1191,6 +1186,19 @@
     //  RENDER FUNCTIONS
     // ═══════════════════════════════════════════════════════════════════════
 
+    // Network color mapping (new colors)
+    const netColors = {
+      Mobitel: '#2e7d32',   // green
+      Dialog: '#e57373',    // light red
+      Hutch: '#f57c00',     // orange
+      Airtel: '#b71c1c'     // dark red
+    };
+    const netList = ['Mobitel', 'Dialog', 'Hutch', 'Airtel'];
+
+    // Server labels for Europe
+    const serverLabels = ['Belgium', 'London', 'Frankfurt', 'Finland'];
+    const serverKeys = ['belgium_ping', 'london_ping', 'frankfurt_ping', 'finland_ping'];
+
     function renderTable() {
       const data = getFilteredData();
       const tbody = document.getElementById('tableBody');
@@ -1198,24 +1206,30 @@
       document.getElementById('footerCount').textContent = measurements.length;
       if (data.length === 0) {
         tbody.innerHTML =
-          `<tr><td colspan="15" class="empty-state">No measurements match filters.</td></tr>`;
+          `<tr><td colspan="14" class="empty-state">No measurements match filters.</td></tr>`;
         return;
       }
+      // Sort by current sortField and sortAsc
       const sorted = [...data].sort((a, b) => {
-        let va = a[sortField] ?? '',
-          vb = b[sortField] ?? '';
+        let va = a[sortField] ?? '';
+        let vb = b[sortField] ?? '';
         if (typeof va === 'string') va = va.toLowerCase();
         if (typeof vb === 'string') vb = vb.toLowerCase();
         if (va < vb) return sortAsc ? -1 : 1;
         if (va > vb) return sortAsc ? 1 : -1;
         return 0;
       });
+
       let html = '';
       for (const r of sorted) {
         const score = calculateRecordScore(r);
+        // Format date/time from timestamp (or fallback to date+time)
+        let displayDateTime = r.timestamp ? new Date(r.timestamp).toLocaleString('en-LK', { hour12: false }) : (r.date + ' ' + r.time);
+        // Network badge with custom color
+        const netColor = netColors[r.network] || '#6c757d';
         html += `<tr>
-          <td>${r.date}</td><td>${r.time}</td>
-          <td><span class="badge badge-blue">${r.network}</span></td>
+          <td>${displayDateTime}</td>
+          <td><span class="badge" style="background:${netColor}; color:#fff;">${r.network}</span></td>
           <td>${r.belgium_ping?.toFixed(1) || '—'}</td>
           <td>${r.london_ping?.toFixed(1) || '—'}</td>
           <td>${r.frankfurt_ping?.toFixed(1) || '—'}</td>
@@ -1231,6 +1245,14 @@
         </tr>`;
       }
       tbody.innerHTML = html;
+
+      // Update sort indicator on header
+      document.querySelectorAll('#tableHead th .sort-icon').forEach(el => el.textContent = '⇅');
+      const th = document.querySelector(`#tableHead th[data-sort="${sortField}"]`);
+      if (th) {
+        const icon = th.querySelector('.sort-icon');
+        if (icon) icon.textContent = sortAsc ? '↑' : '↓';
+      }
     }
 
     function calculateRecordScore(r) {
@@ -1248,12 +1270,13 @@
       const th = e.target.closest('th');
       if (!th || !th.dataset.sort) return;
       const field = th.dataset.sort;
-      if (sortField === field) sortAsc = !sortAsc;
-      else { sortField = field;
-        sortAsc = true; }
+      if (sortField === field) {
+        sortAsc = !sortAsc;
+      } else {
+        sortField = field;
+        sortAsc = true;  // default to ascending when clicking new column
+      }
       renderTable();
-      const icon = th.querySelector('.sort-icon');
-      if (icon) icon.textContent = sortAsc ? '↑' : '↓';
     });
 
     // ── KPIs ──
@@ -1420,7 +1443,7 @@
       return total > 0 ? (wins / total) * 100 : 0;
     }
 
-    // ── Charts ──
+    // ── Charts (full) ──
     function destroyChart(key) { if (chartInstances[key]) { chartInstances[key].destroy();
         delete chartInstances[key]; } }
 
@@ -1451,13 +1474,7 @@
       renderIntraDayChart(data);
     }
 
-    const netColors = { Mobitel: '#0b2b5c', Dialog: '#1a7a4a', Hutch: '#c0392b', Airtel: '#b9770e' };
-    const netList = ['Mobitel', 'Dialog', 'Hutch', 'Airtel'];
-
-    // Server labels for Europe
-    const serverLabels = ['Belgium', 'London', 'Frankfurt', 'Finland'];
-    const serverKeys = ['belgium_ping', 'london_ping', 'frankfurt_ping', 'finland_ping'];
-
+    // ── Chart helpers ──
     function renderOverviewChart(data) {
       const canvas = document.getElementById('chartOverview');
       destroyChart('overview');
@@ -1827,10 +1844,7 @@
     }
 
     function renderHeatmapServerChart(data) {
-      // Already rendered by renderServerHeatmapChart, but we keep this for tab
-      // We'll just reuse the same chart
-      // Actually we already called renderServerHeatmapChart, so this is redundant.
-      // We'll keep it as a reference.
+      // already done via renderServerHeatmapChart, but we keep for tab
     }
 
     function renderOutliersChart(data) {
@@ -2019,9 +2033,17 @@
         }
         const sorted = Object.entries(byNet).sort((a, b) => a[1].avg - b[1].avg);
         sorted.forEach(([n, stats], idx) => {
-          html += `<tr><td>${idx===0 ? d : ''}</td><td><span class="badge badge-blue">${n}</span></td><td>${stats.count}</td>
-            <td><strong>${stats.avg.toFixed(1)}</strong></td><td>${stats.median.toFixed(1)}</td><td>${stats.min.toFixed(1)}</td>
-            <td>${stats.max.toFixed(1)}</td><td>${stats.p95.toFixed(1)}</td><td>${stats.stdev.toFixed(1)}</td><td>${idx+1}</td></tr>`;
+          const netColor = netColors[n] || '#6c757d';
+          html += `<tr><td>${idx===0 ? d : ''}</td>
+            <td><span class="badge" style="background:${netColor}; color:#fff;">${n}</span></td>
+            <td>${stats.count}</td>
+            <td><strong>${stats.avg.toFixed(1)}</strong></td>
+            <td>${stats.median.toFixed(1)}</td>
+            <td>${stats.min.toFixed(1)}</td>
+            <td>${stats.max.toFixed(1)}</td>
+            <td>${stats.p95.toFixed(1)}</td>
+            <td>${stats.stdev.toFixed(1)}</td>
+            <td>${idx+1}</td></tr>`;
         });
       }
       html += '</tbody></table></div>';
@@ -2048,8 +2070,13 @@
         }
         const sorted = Object.entries(byNet).sort((a, b) => a[1].avg - b[1].avg);
         sorted.forEach(([n, stats], idx) => {
-          html += `<tr><td>${idx===0 ? p : ''}</td><td><span class="badge badge-blue">${n}</span></td><td>${stats.count}</td>
-            <td><strong>${stats.avg.toFixed(1)}</strong></td><td>${stats.median.toFixed(1)}</td><td>${stats.p95.toFixed(1)}</td>
+          const netColor = netColors[n] || '#6c757d';
+          html += `<tr><td>${idx===0 ? p : ''}</td>
+            <td><span class="badge" style="background:${netColor}; color:#fff;">${n}</span></td>
+            <td>${stats.count}</td>
+            <td><strong>${stats.avg.toFixed(1)}</strong></td>
+            <td>${stats.median.toFixed(1)}</td>
+            <td>${stats.p95.toFixed(1)}</td>
             <td>${stats.stdev.toFixed(1)}</td></tr>`;
         });
       }
@@ -2077,9 +2104,16 @@
         }
         const sorted = Object.entries(byNet).sort((a, b) => a[1].avg - b[1].avg);
         sorted.forEach(([n, stats], i) => {
-          html += `<tr><td>${i===0 ? svr : ''}</td><td><span class="badge badge-blue">${n}</span></td><td>${stats.count}</td>
-            <td><strong>${stats.avg.toFixed(1)}</strong></td><td>${stats.median.toFixed(1)}</td><td>${stats.min.toFixed(1)}</td>
-            <td>${stats.max.toFixed(1)}</td><td>${stats.p95.toFixed(1)}</td><td>${stats.stdev.toFixed(1)}</td></tr>`;
+          const netColor = netColors[n] || '#6c757d';
+          html += `<tr><td>${i===0 ? svr : ''}</td>
+            <td><span class="badge" style="background:${netColor}; color:#fff;">${n}</span></td>
+            <td>${stats.count}</td>
+            <td><strong>${stats.avg.toFixed(1)}</strong></td>
+            <td>${stats.median.toFixed(1)}</td>
+            <td>${stats.min.toFixed(1)}</td>
+            <td>${stats.max.toFixed(1)}</td>
+            <td>${stats.p95.toFixed(1)}</td>
+            <td>${stats.stdev.toFixed(1)}</td></tr>`;
         });
       }
       html += '</tbody></table></div>';
@@ -2095,7 +2129,7 @@
       for (const n of netList) {
         const recs = data.filter(r => r.network === n);
         if (!recs.length) { html +=
-            `<tr><td>${n}</td><td colspan="11">No data</td></tr>`; continue; }
+            `<tr><td><span class="badge" style="background:${netColors[n]}; color:#fff;">${n}</span></td><td colspan="11">No data</td></tr>`; continue; }
         const avgs = recs.map(r => r.average_ping);
         const serverAvgs = serverKeys.map(key => {
           const vals = recs.map(r => r[key]).filter(v => v !== undefined && v !== null && !isNaN(v));
@@ -2111,7 +2145,8 @@
           if (serverAvgs[i] > worstVal && serverAvgs[i] !== Infinity) { worstVal = serverAvgs[i];
             worstSvr = serverLabels[i]; }
         }
-        html += `<tr><td><span class="badge badge-blue">${n}</span></td><td>${recs.length}</td>
+        html += `<tr><td><span class="badge" style="background:${netColors[n]}; color:#fff;">${n}</span></td>
+          <td>${recs.length}</td>
           <td><strong>${(avgs.reduce((a,b)=>a+b,0)/avgs.length).toFixed(1)}</strong></td>
           <td>${percentile(avgs,50).toFixed(1)}</td><td>${Math.min(...avgs).toFixed(1)}</td>
           <td>${Math.max(...avgs).toFixed(1)}</td><td>${percentile(avgs,95).toFixed(1)}</td>
@@ -2132,7 +2167,7 @@
       for (const n of netList) {
         const recs = data.filter(r => r.network === n);
         if (recs.length < 2) { html +=
-            `<tr><td>${n}</td><td colspan="7">Insufficient</td></tr>`; continue; }
+            `<tr><td><span class="badge" style="background:${netColors[n]}; color:#fff;">${n}</span></td><td colspan="7">Insufficient</td></tr>`; continue; }
         const avgs = recs.map(r => r.average_ping);
         const stdev = stddev(avgs);
         const cv = coefficientOfVariation(avgs);
@@ -2142,7 +2177,8 @@
         const p99 = percentile(avgs, 99);
         const score = Math.max(0, 100 - (stdev * 2.5 + cv * 10 + range * 0.5));
         const grade = score > 80 ? '🟢 Excellent' : score > 60 ? '🟡 Good' : score > 40 ? '🟠 Moderate' : '🔴 Poor';
-        html += `<tr><td><span class="badge badge-blue">${n}</span></td><td>${stdev.toFixed(1)}</td><td>${cv.toFixed(2)}</td>
+        html += `<tr><td><span class="badge" style="background:${netColors[n]}; color:#fff;">${n}</span></td>
+          <td>${stdev.toFixed(1)}</td><td>${cv.toFixed(2)}</td>
           <td>${range.toFixed(1)}</td><td>${p90.toFixed(1)}</td><td>${p95.toFixed(1)}</td><td>${p99.toFixed(1)}</td>
           <td><strong>${score.toFixed(0)}</strong> ${grade}</td></tr>`;
       }
@@ -2221,7 +2257,9 @@
       let html =
         `<div style="margin-bottom:8px;color:#c0392b;font-weight:500;">⚠️ ${anomalies.length} anomaly(ies)</div><div class="table-wrap"><table><thead><tr><th>Date</th><th>Time</th><th>Network</th><th>Server</th><th>Value (ms)</th><th>Normal Range</th><th>Severity</th></tr></thead><tbody>`;
       for (const a of anomalies) {
-        html += `<tr><td>${a.date}</td><td>${a.time}</td><td><span class="badge badge-blue">${a.network}</span></td>
+        const netColor = netColors[a.network] || '#6c757d';
+        html += `<tr><td>${a.date}</td><td>${a.time}</td>
+          <td><span class="badge" style="background:${netColor}; color:#fff;">${a.network}</span></td>
           <td>${a.server}</td><td><strong>${a.value.toFixed(1)}</strong></td><td>${a.normalRange}</td>
           <td><span class="badge ${a.severity==='High' ? 'badge-red' : 'badge-gold'}">${a.severity}</span></td></tr>`;
       }
@@ -2450,7 +2488,7 @@
       const m = String(today.getMonth() + 1).padStart(2, '0');
       const d = String(today.getDate()).padStart(2, '0');
       document.getElementById('intradayDate').value = y + '-' + m + '-' + d;
-      console.log('📶 Dashboard with Europe servers and Intra-day trend ready.');
+      console.log('📶 Dashboard with new colors and latest-first sorting.');
     });
 
     window.handleDelete = handleDelete;
